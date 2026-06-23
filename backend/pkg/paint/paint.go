@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
+	"log"
 	"sync"
 	"time"
 
@@ -42,6 +43,7 @@ func New(room *wsmanager.Room, width, height int) *Paint {
 }
 
 func (p *Paint) handleJoinEvent(c *wsmanager.Client) {
+	log.Println("join ", c)
 	p.mu.Lock()
 	bounds := p.Canvas.Bounds()
 	pixels := make([]Pixel, 0)
@@ -88,7 +90,7 @@ func (p *Paint) handlePixelUpdate(evt *wsmanager.Event) {
 }
 
 func (p *Paint) Run() {
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
 
 	for range ticker.C {

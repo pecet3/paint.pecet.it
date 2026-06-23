@@ -5,9 +5,14 @@ import (
 	"net/http"
 )
 
+type User interface {
+	Name() string
+	Uuid() string
+}
+
 type Request struct {
 	ClientInfo *ClientInfo
-	AuthUser   any
+	User       User
 	Req        *http.Request
 }
 

@@ -45,7 +45,7 @@ func (g *Guardian) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log.Println(client)
 	gReq := &Request{
 		ClientInfo: &ClientInfo{},
-		AuthUser:   nil,
+		User:       nil,
 		Req:        r,
 	}
 

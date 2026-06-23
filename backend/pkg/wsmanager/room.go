@@ -68,6 +68,7 @@ func (r *Room) Run() {
 	for {
 		select {
 		case client := <-r.joinCh:
+			r.clients[client] = true
 			if len(r.joinHandlers) > 0 {
 				for _, handle := range r.joinHandlers {
 					handle(client)
@@ -94,8 +95,6 @@ func (r *Room) Run() {
 				}
 			}
 		case msg := <-r.eventCh:
-			log.Printf(" %s", msg.Type)
-
 			if handler, ok := r.eventHandlers[msg.Type]; ok {
 				handler(msg)
 			} else {
