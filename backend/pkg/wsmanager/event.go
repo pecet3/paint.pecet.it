@@ -11,3 +11,5 @@ type Event struct {
 }
 
 type EventHandler = func(evt *Event)
+
+type EntranceEventHandler = func(client *Client)

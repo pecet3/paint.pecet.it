@@ -9,8 +9,11 @@ import (
 
 type Client struct {
 	conn   *websocket.Conn
-	room   string
 	sendCh chan json.RawMessage
+}
+
+func (c *Client) Send(msg json.RawMessage) {
+	c.sendCh <- msg
 }
 
 func NewClient(conn *websocket.Conn) *Client {
@@ -21,14 +24,12 @@ func (c *Client) readPump(r *Room) {
 		r.leaveCh <- c
 		c.conn.Close()
 	}()
-	log.Println(1)
 	for {
 		_, bytes, err := c.conn.ReadMessage()
 		if err != nil {
 			log.Printf("Ws read message err: %v", err)
 			break
 		}
-		log.Println(2)
 
 		var e Event
 		if err := json.Unmarshal(bytes, &e); err != nil {
@@ -36,7 +37,6 @@ func (c *Client) readPump(r *Room) {
 			continue
 		}
 		e.Client = c
-		log.Println(3)
 
 		r.eventCh <- &e
 	}

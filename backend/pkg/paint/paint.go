@@ -2,74 +2,124 @@ package paint
 
 import (
 	"encoding/json"
+	"fmt"
 	"image"
-	"log"
+	"image/color"
+	"sync"
+	"time"
 
 	"paint.pecet.it/pkg/wsmanager"
 )
 
+type Pixel struct {
+	X     int    `json:"x"`
+	Y     int    `json:"y"`
+	Color string `json:"color"`
+}
+
+type UpdateEvent struct {
+	Type    string  `json:"type"`
+	Payload []Pixel `json:"payload"`
+}
+
 type Paint struct {
-	Room  *wsmanager.Room
-	Image image.Image
+	Room        *wsmanager.Room
+	Canvas      *image.RGBA
+	mu          sync.Mutex
+	pixelBuffer []Pixel
 }
 
-// Point odpowiada interfejsowi Point z TypeScriptu
-type Point struct {
-	X float64 `json:"x"`
-	Y float64 `json:"y"`
+func New(room *wsmanager.Room, width, height int) *Paint {
+	p := &Paint{
+		Room:        room,
+		Canvas:      image.NewRGBA(image.Rect(0, 0, width, height)),
+		pixelBuffer: make([]Pixel, 0),
+	}
+
+	p.Room.RegisterEventHandler("canvas_pixel_update", p.handlePixelUpdate)
+	p.Room.RegisterJoinHandler(p.handleJoinEvent)
+	return p
 }
 
-// DrawEvent odpowiada interfejsowi DrawEvent z TypeScriptu
-type DrawEvent struct {
-	Action string  `json:"action"` // "start" | "draw" | "end"
-	Point  Point   `json:"point"`
-	Color  string  `json:"color"`
-	Size   float64 `json:"size"`
-	UserID string  `json:"userId,omitempty"`
+func (p *Paint) handleJoinEvent(c *wsmanager.Client) {
+	p.mu.Lock()
+	bounds := p.Canvas.Bounds()
+	pixels := make([]Pixel, 0)
+
+	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			rgba := p.Canvas.RGBAAt(x, y)
+			if rgba.A > 0 {
+				pixels = append(pixels, Pixel{
+					X:     x,
+					Y:     y,
+					Color: fmt.Sprintf("#%02x%02x%02x", rgba.R, rgba.G, rgba.B),
+				})
+			}
+		}
+	}
+	p.mu.Unlock()
+
+	event := UpdateEvent{
+		Type:    "canvas_pixel_update",
+		Payload: pixels,
+	}
+
+	data, err := json.Marshal(event)
+	if err == nil {
+		c.Send(data)
+	}
 }
 
-func ImplementPaint(room *wsmanager.Room) {
-	room.RegisterEventHandler("drawing", func(evt *wsmanager.Event) {
-		var drawEvt DrawEvent
+func (p *Paint) handlePixelUpdate(evt *wsmanager.Event) {
+	var pixels []Pixel
+	err := json.Unmarshal(evt.Payload, &pixels)
+	if err != nil {
+		return
+	}
 
-		// Zakładam, że evt.Payload to json.RawMessage (lub []byte).
-		// Parsujemy payload do naszej struktury DrawEvent.
-		err := json.Unmarshal(evt.Payload, &drawEvt)
-		if err != nil {
-			log.Printf("Błąd podczas parsowania eventu drawing: %v", err)
-			return
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for _, px := range pixels {
+		p.Canvas.Set(px.X, px.Y, parseHexColor(px.Color))
+		p.pixelBuffer = append(p.pixelBuffer, px)
+	}
+}
+
+func (p *Paint) Run() {
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		p.mu.Lock()
+
+		if len(p.pixelBuffer) > 0 {
+			event := UpdateEvent{
+				Type:    "canvas_pixel_update",
+				Payload: p.pixelBuffer,
+			}
+
+			data, err := json.Marshal(event)
+			if err == nil {
+				p.Room.Broadcast(data)
+			}
+
+			p.pixelBuffer = make([]Pixel, 0)
 		}
 
-		// Obsługa pod-eventów na podstawie pola Action
-		switch drawEvt.Action {
-		case "start":
-			log.Printf("Użytkownik %s ROZPOCZĄŁ rysowanie w punkcie (%f, %f) kolorem %s",
-				drawEvt.UserID, drawEvt.Point.X, drawEvt.Point.Y, drawEvt.Color)
-			// TODO: Tutaj możesz zainicjować stan rysowania, jeśli trzymasz go po stronie serwera
+		p.mu.Unlock()
+	}
+}
 
-		case "draw":
-			// log.Printf("Użytkownik %s rysuje w (%f, %f)", drawEvt.UserID, drawEvt.Point.X, drawEvt.Point.Y)
-			// TODO: Zaktualizuj obraz (Paint.Image) o nową linię/punkt
-
-		case "end":
-			log.Printf("Użytkownik %s ZAKOŃCZYŁ rysowanie.", drawEvt.UserID)
-			// TODO: Zakończ ścieżkę dla danego użytkownika
-
-		default:
-			log.Printf("Otrzymano nieznaną akcję rysowania: %s", drawEvt.Action)
-			return
-		}
-
-		// Z Twojego kodu React wynika, że klient nasłuchujący odbiera bezpośrednio DrawEvent:
-		// const data: DrawEvent = JSON.parse(message.data);
-		// Dlatego rozsyłamy dalej (broadcast) sam payload bez zewnętrznego wrappera "type".
-
-		broadcastData, err := json.Marshal(drawEvt)
-		if err != nil {
-			log.Printf("Błąd serializacji eventu do rozgłoszenia: %v", err)
-			return
-		}
-
-		room.Broadcast(broadcastData)
-	})
+func parseHexColor(s string) color.RGBA {
+	c := color.RGBA{A: 255}
+	if len(s) == 7 && s[0] == '#' {
+		var r, g, b uint8
+		fmt.Sscanf(s, "#%02x%02x%02x", &r, &g, &b)
+		c.R = r
+		c.G = g
+		c.B = b
+	}
+	return c
 }

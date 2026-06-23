@@ -51,6 +51,5 @@ func (g *Guardian) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	rWithContext := SetGuardianRequest(r, gReq)
 
-	// 2. Przekazujemy wzbogacone żądanie do wewnętrznego routera (Muxa)
 	g.mux.ServeHTTP(w, rWithContext)
 }

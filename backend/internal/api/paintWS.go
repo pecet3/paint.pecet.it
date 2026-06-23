@@ -9,9 +9,11 @@ import (
 	"paint.pecet.it/pkg/wsmanager"
 )
 
+const bufSize = 1024 * 64 * 4
+
 var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
+	ReadBufferSize:  bufSize,
+	WriteBufferSize: bufSize,
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
@@ -31,8 +33,9 @@ func (api *Api) handlePaintWS(w http.ResponseWriter, r *http.Request) {
 
 	room, ok := api.wsM.GetRoom(roomName)
 	if !ok {
-		room = wsmanager.NewRoom()
-		paint.ImplementPaint(room)
+		room = wsmanager.NewRoom(roomName)
+		p := paint.New(room, 800, 600)
+		go p.Run()
 		api.wsM.SetRoom(room, roomName)
 		go room.Run()
 	}

@@ -1,19 +1,20 @@
-import { useEffect, useRef, useState } from "react";
-import { PaintCanvas } from "../components/paint/PaintCanvas";
-import type { DrawEvent } from "../dto";
-
+import React, { useEffect, useRef, useState } from "react";
+import { PaintCanvas, type Pixel } from "../components/paint/PaintCanvas";
 
 export const Home: React.FC = () => {
   const ws = useRef<WebSocket | null>(null);
-  const [incomingEvent, setIncomingEvent] = useState<DrawEvent | null>(null);
+  const [incomingPixels, setIncomingPixels] = useState<Pixel[] | null>(null);
+  const room = "1";
 
-  const room = "1"
   useEffect(() => {
     ws.current = new WebSocket(`ws://localhost:8080/ws?room=${room}`);
-    ws.current.onmessage = (message: any) => {
+
+    ws.current.onmessage = (message: MessageEvent) => {
       console.log(message)
-      const data: DrawEvent = JSON.parse(message.data);
-      setIncomingEvent(data);
+      const data = JSON.parse(message.data);
+      if (data.type === "canvas_pixel_update") {
+        setIncomingPixels(data.payload);
+      }
     };
 
     return () => {
@@ -21,21 +22,19 @@ export const Home: React.FC = () => {
     };
   }, []);
 
-  const handleSendDrawEvent = (drawEvent: DrawEvent) => {
+  const handleSendPixelUpdate = (pixels: Pixel[]) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      const wsEvent = {
-        type: "drawing",
-        payload: drawEvent,
-      }
-      ws.current.send(JSON.stringify(wsEvent));
+      ws.current.send(JSON.stringify({
+        type: "canvas_pixel_update",
+        payload: pixels,
+      }));
     }
   };
 
-
-
   return (
-    <PaintCanvas onSendDrawEvent={handleSendDrawEvent}
-      incomingDrawEvent={incomingEvent} />
+    <PaintCanvas
+      onSendPixelUpdate={handleSendPixelUpdate}
+      incomingPixels={incomingPixels}
+    />
   );
 };
-

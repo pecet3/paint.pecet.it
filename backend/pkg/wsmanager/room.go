@@ -9,6 +9,8 @@ import (
 )
 
 type Room struct {
+	Ident string
+
 	clients map[*Client]bool
 	cMu     sync.RWMutex
 
@@ -17,16 +19,23 @@ type Room struct {
 	leaveCh     chan *Client
 	eventCh     chan *Event
 
-	events map[string]EventHandler
+	eventHandlers map[string]EventHandler
+	joinHandlers  []EntranceEventHandler
+	leaveHandlers []EntranceEventHandler
 }
 
-func NewRoom() *Room {
+func NewRoom(ident string) *Room {
 	return &Room{
+		Ident:       ident,
 		clients:     make(map[*Client]bool),
 		broadcastCh: make(chan json.RawMessage),
 		joinCh:      make(chan *Client),
 		leaveCh:     make(chan *Client),
 		eventCh:     make(chan *Event),
+
+		eventHandlers: make(map[string]EventHandler),
+		joinHandlers:  []EntranceEventHandler{},
+		leaveHandlers: []EntranceEventHandler{},
 	}
 }
 
@@ -43,21 +52,33 @@ func (r *Room) HandleNewConn(conn *websocket.Conn) {
 }
 
 func (r *Room) RegisterEventHandler(eventType string, handler EventHandler) {
-	if r.events == nil {
-		r.events = make(map[string]EventHandler)
-	}
-	r.events[eventType] = handler
+	r.eventHandlers[eventType] = handler
+}
+
+func (r *Room) RegisterJoinHandler(handler func(client *Client)) {
+	r.joinHandlers = append(r.joinHandlers, handler)
+}
+
+func (r *Room) RegisterLeaveHandler(handler func(client *Client)) {
+	r.leaveHandlers = append(r.leaveHandlers, handler)
 }
 
 func (r *Room) Run() {
-	log.Println("room listening ")
+	log.Printf(" %s room is listening ", r.Ident)
 	for {
 		select {
 		case client := <-r.joinCh:
-			log.Println(client, " join")
-			r.clients[client] = true
+			if len(r.joinHandlers) > 0 {
+				for _, handle := range r.joinHandlers {
+					handle(client)
+				}
+			}
 		case client := <-r.leaveCh:
-			log.Println(client, " leave")
+			if len(r.joinHandlers) > 0 {
+				for _, handle := range r.leaveHandlers {
+					handle(client)
+				}
+			}
 			if _, ok := r.clients[client]; ok {
 				delete(r.clients, client)
 				close(client.sendCh)
@@ -68,15 +89,14 @@ func (r *Room) Run() {
 				select {
 				case client.sendCh <- msg:
 				default:
-					log.Println(22)
 					close(client.sendCh)
 					delete(r.clients, client)
 				}
 			}
 		case msg := <-r.eventCh:
-			log.Printf("aaa %s", msg.Type)
+			log.Printf(" %s", msg.Type)
 
-			if handler, ok := r.events[msg.Type]; ok {
+			if handler, ok := r.eventHandlers[msg.Type]; ok {
 				handler(msg)
 			} else {
 				log.Printf("Unhandled event type: %s", msg.Type)
