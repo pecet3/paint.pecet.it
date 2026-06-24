@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"paint.pecet.it/pkg/wsmanager"
+	"paint.pecet.it/pkg/ward/wsmanager"
 )
 
 // offset  8

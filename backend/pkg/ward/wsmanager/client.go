@@ -5,14 +5,14 @@ import (
 	"log"
 
 	"github.com/gorilla/websocket"
-	"paint.pecet.it/pkg/guardian"
+	"paint.pecet.it/pkg/ward"
 )
 
 type Client struct {
 	conn      *websocket.Conn
 	sendCh    chan json.RawMessage
 	roomIdent string
-	Request   *guardian.Request
+	Request   *ward.Request
 }
 
 func (c *Client) Log(v ...any) {
@@ -23,7 +23,7 @@ func (c *Client) Send(msg json.RawMessage) {
 	c.sendCh <- msg
 }
 
-func NewClient(r *Room, conn *websocket.Conn, greq *guardian.Request) *Client {
+func NewClient(r *Room, conn *websocket.Conn, greq *ward.Request) *Client {
 	return &Client{conn: conn, sendCh: make(chan json.RawMessage), Request: greq, roomIdent: r.Ident}
 }
 func (c *Client) readPump(r *Room) {

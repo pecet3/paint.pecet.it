@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
-	"paint.pecet.it/pkg/guardian"
+	"paint.pecet.it/pkg/ward"
 )
 
 type Room struct {
@@ -48,7 +48,7 @@ func (r *Room) KickClient(client *Client) {
 	r.leaveCh <- client
 }
 
-func (r *Room) HandleNewClient(conn *websocket.Conn, qreq *guardian.Request) {
+func (r *Room) HandleNewClient(conn *websocket.Conn, qreq *ward.Request) {
 	client := NewClient(r, conn, qreq)
 
 	r.joinCh <- client

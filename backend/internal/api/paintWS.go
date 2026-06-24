@@ -5,9 +5,10 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
-	"paint.pecet.it/pkg/guardian"
+
 	"paint.pecet.it/pkg/paint"
-	"paint.pecet.it/pkg/wsmanager"
+	"paint.pecet.it/pkg/ward"
+	"paint.pecet.it/pkg/ward/wsmanager"
 )
 
 const bufSize = 1024 * 64 * 4
@@ -31,7 +32,7 @@ func (api *Api) handlePaintWS(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 		return
 	}
-	greq := guardian.GetGuardianRequest(r)
+	greq := ward.GetWardRequest(r)
 
 	room, ok := api.wsM.GetRoom(roomName)
 	if !ok {

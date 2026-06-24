@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"paint.pecet.it/pkg/guardian"
-	"paint.pecet.it/pkg/wsmanager"
+	"paint.pecet.it/pkg/ward"
+	"paint.pecet.it/pkg/ward/wsmanager"
 )
 
 const (
@@ -32,8 +32,16 @@ func New() *Api {
 func (api *Api) Run() {
 	wsM := wsmanager.New()
 	api.wsM = wsM
-	g := guardian.New()
-	g.HandleFunc("/ws", api.handlePaintWS)
+	w := ward.New()
+	w.HandleFunc("/ws", api.handlePaintWS)
+
+	w.Handle("/test", func(greq *ward.Request) {
+		greq.Write([]byte("aaaa"))
+	})
 	log.Println("Listening on port", port)
-	log.Fatal(http.ListenAndServe(port, g))
+	log.Fatal(http.ListenAndServe(port, w))
+}
+
+func (api *Api) HandleHelloWorld(req *ward.Request) {
+
 }

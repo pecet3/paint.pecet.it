@@ -1,4 +1,4 @@
-package guardian
+package ward
 
 import (
 	"context"
@@ -13,10 +13,9 @@ type User interface {
 }
 
 type Request struct {
-	Id  uint64
-	Req *http.Request
-	W   http.ResponseWriter
-
+	http.ResponseWriter
+	Id         uint64
+	Http       *http.Request
 	ClientInfo *ClientInfo
 	User       User
 }
@@ -31,19 +30,19 @@ func (r *Request) Log(v ...any) {
 
 type contextKey string
 
-const guardianRequestKey contextKey = "guardianKey"
+const WardRequestKey contextKey = "WardKey"
 
-func SetGuardianRequest(req *http.Request, gReq *Request) *http.Request {
-	ctx := context.WithValue(req.Context(), guardianRequestKey, gReq)
+func SetWardRequest(req *http.Request, gReq *Request) *http.Request {
+	ctx := context.WithValue(req.Context(), WardRequestKey, gReq)
 	return req.WithContext(ctx)
 }
 
-func GetGuardianRequest(req *http.Request) *Request {
-	if val, ok := req.Context().Value(guardianRequestKey).(*Request); ok && val != nil {
+func GetWardRequest(req *http.Request) *Request {
+	if val, ok := req.Context().Value(WardRequestKey).(*Request); ok && val != nil {
 		return val
 	}
 	return &Request{
 		ClientInfo: &ClientInfo{},
-		Req:        req,
+		Http:       req,
 	}
 }

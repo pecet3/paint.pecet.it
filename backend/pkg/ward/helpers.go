@@ -1,4 +1,4 @@
-package guardian
+package ward
 
 import (
 	"net"
@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func GetClientIP(r *http.Request) string {
+func getClientIP(r *http.Request) string {
 	var rawIP string
 	xForwardedFor := r.Header.Get("X-Forwarded-For")
 	if xForwardedFor != "" {
