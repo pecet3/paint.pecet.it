@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"image"
+	"image/color"
 	"sync"
 	"time"
 
@@ -97,32 +98,23 @@ func (p *Paint) handlePixelUpdate(evt *wsmanager.Event) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	bounds := p.Canvas.Bounds()
-	canvasWidth := bounds.Max.X
-
 	for i := 0; i < len(data); i += 8 {
 		x := int(binary.LittleEndian.Uint16(data[i : i+2]))
 		y := int(binary.LittleEndian.Uint16(data[i+2 : i+4]))
 
-		if x < 0 || x >= bounds.Max.X || y < 0 || y >= bounds.Max.Y {
-			evt.Client.Log("err pixel bounds")
-			return
-		}
-
-		byteOffset := (y*canvasWidth + x) * 4
-
-		p.Canvas.Pix[byteOffset] = data[i+4]        // R
-		p.Canvas.Pix[byteOffset+1] = data[i+5]      // G
-		p.Canvas.Pix[byteOffset+2] = data[i+6]      // B
-		p.Canvas.Pix[byteOffset+3] = data[i+7] + 20 // A
-
+		p.Canvas.SetRGBA(x, y, color.RGBA{
+			R: data[i+4],
+			G: data[i+5],
+			B: data[i+6],
+			A: data[i+7],
+		})
 	}
 	p.pixelFrameBuf = append(p.pixelFrameBuf, data...)
 }
 
 func (p *Paint) Run() {
 	go func() {
-		ticker := time.NewTicker(50 * time.Millisecond)
+		ticker := time.NewTicker(30 * time.Millisecond)
 		defer ticker.Stop()
 
 		for range ticker.C {
