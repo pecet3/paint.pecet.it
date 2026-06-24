@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/gorilla/websocket"
+	"paint.pecet.it/pkg/guardian"
 )
 
 type Room struct {
@@ -43,11 +44,16 @@ func (r *Room) Broadcast(msg json.RawMessage) {
 	r.broadcastCh <- msg
 }
 
-func (r *Room) HandleNewConn(conn *websocket.Conn) {
-	client := NewClient(conn)
+func (r *Room) KickClient(client *Client) {
+	r.leaveCh <- client
+}
+
+func (r *Room) HandleNewClient(conn *websocket.Conn, qreq *guardian.Request) {
+	client := NewClient(r, conn, qreq)
+
 	r.joinCh <- client
 
-	go client.writePump()
+	go client.writePump(r)
 	go client.readPump(r)
 }
 
@@ -64,42 +70,44 @@ func (r *Room) RegisterLeaveHandler(handler func(client *Client)) {
 }
 
 func (r *Room) Run() {
-	log.Printf(" %s room is listening ", r.Ident)
-	for {
-		select {
-		case client := <-r.joinCh:
-			r.clients[client] = true
-			if len(r.joinHandlers) > 0 {
-				for _, handle := range r.joinHandlers {
-					handle(client)
+	go func() {
+		log.Printf("room: %s is listening ", r.Ident)
+		for {
+			select {
+			case client := <-r.joinCh:
+				r.clients[client] = true
+				if len(r.joinHandlers) > 0 {
+					for _, handle := range r.joinHandlers {
+						handle(client)
+					}
 				}
-			}
-		case client := <-r.leaveCh:
-			if len(r.joinHandlers) > 0 {
-				for _, handle := range r.leaveHandlers {
-					handle(client)
+			case client := <-r.leaveCh:
+				if len(r.leaveHandlers) > 0 {
+					for _, handle := range r.leaveHandlers {
+						handle(client)
+					}
 				}
-			}
-			if _, ok := r.clients[client]; ok {
-				delete(r.clients, client)
-				close(client.sendCh)
-			}
-
-		case msg := <-r.broadcastCh:
-			for client := range r.clients {
-				select {
-				case client.sendCh <- msg:
-				default:
-					close(client.sendCh)
+				if _, ok := r.clients[client]; ok {
 					delete(r.clients, client)
+					close(client.sendCh)
 				}
-			}
-		case msg := <-r.eventCh:
-			if handler, ok := r.eventHandlers[msg.Type]; ok {
-				handler(msg)
-			} else {
-				log.Printf("Unhandled event type: %s", msg.Type)
+
+			case msg := <-r.broadcastCh:
+				for client := range r.clients {
+					select {
+					case client.sendCh <- msg:
+					default:
+						close(client.sendCh)
+						delete(r.clients, client)
+					}
+				}
+			case msg := <-r.eventCh:
+				if handler, ok := r.eventHandlers[msg.Type]; ok {
+					go handler(msg)
+				} else {
+					log.Printf("Unhandled event type: %s", msg.Type)
+				}
 			}
 		}
-	}
+	}()
 }

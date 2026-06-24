@@ -1,10 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
+import type { Pixel } from '../../types';
+import { paintDataSendTimestampMs } from '../../config';
 
-export interface Pixel {
-    x: number;
-    y: number;
-    color: string;
-}
 
 interface PaintCanvasProps {
     onSendPixelUpdate: (pixels: Pixel[]) => void;
@@ -20,11 +17,11 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
 
     // Nowe stany do obsługi tekstu i wyboru narzędzia
     const [tool, setTool] = useState<'draw' | 'text'>('draw');
-    const [textValue, setTextValue] = useState<string>('Twój tekst');
+    const [textValue, setTextValue] = useState<string>('Hello world');
     const [fontSize, setFontSize] = useState<number>(24);
 
     const [color, setColor] = useState<string>('#000000');
-    const [brushSize, setBrushSize] = useState<number>(1);
+    const [brushSize, setBrushSize] = useState<number>(4);
     const [isDrawing, setIsDrawing] = useState<boolean>(false);
     const lastPos = useRef<{ x: number; y: number } | null>(null);
 
@@ -77,19 +74,24 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                     const r = data[i];
                     const g = data[i + 1];
                     const b = data[i + 2];
-                    const hexColor = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+
+                    const hexColor = '#' +
+                        r.toString(16).padStart(2, '0') +
+                        g.toString(16).padStart(2, '0') +
+                        b.toString(16).padStart(2, '0') +
+                        alpha.toString(16).padStart(2, '0');
+
                     const pixelIndex = i / 4;
                     const x = pixelIndex % width;
                     const y = Math.floor(pixelIndex / width);
                     changedPixels.push({ x, y, color: hexColor });
                 }
             }
-
             if (changedPixels.length > 0) {
                 onSendPixelUpdate(changedPixels);
                 ctx.clearRect(0, 0, width, height);
             }
-        }, 50);
+        }, paintDataSendTimestampMs);
 
         return () => clearInterval(interval);
     }, [onSendPixelUpdate]);
@@ -153,7 +155,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                 {tool === 'draw' && (
                     <label>
                         Grubość pędzla: {brushSize}px
-                        <input type="range" min="1" max="1"
+                        <input type="range" min="1" max="10"
                             value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} style={{ marginLeft: '5px' }} />
                     </label>
                 )}
@@ -166,7 +168,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                         </label>
                         <label>
                             Rozmiar: {fontSize}px
-                            <input type="range" min="10" max="100" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} style={{ marginLeft: '5px' }} />
+                            <input type="range" min="5" max="20" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} style={{ marginLeft: '5px' }} />
                         </label>
                     </>
                 )}

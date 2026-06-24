@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
-import { PaintCanvas, type Pixel } from "../components/paint/PaintCanvas";
+import { PaintCanvas } from "../components/paint/PaintCanvas";
+import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/paint/pixel";
+import type { Pixel } from "../types";
+import { wsAddr } from "../config";
+
 
 export const Home: React.FC = () => {
   const ws = useRef<WebSocket | null>(null);
@@ -7,13 +11,14 @@ export const Home: React.FC = () => {
   const room = "1";
 
   useEffect(() => {
-    ws.current = new WebSocket(`ws://localhost:8080/ws?room=${room}`);
+    ws.current = new WebSocket(wsAddr);
 
     ws.current.onmessage = (message: MessageEvent) => {
-      console.log(message)
+      console.log(message);
       const data = JSON.parse(message.data);
       if (data.type === "canvas_pixel_update") {
-        setIncomingPixels(data.payload);
+        const decodedPixels = decodeBase64ToPixels(data.payload);
+        setIncomingPixels(decodedPixels);
       }
     };
 
@@ -24,9 +29,11 @@ export const Home: React.FC = () => {
 
   const handleSendPixelUpdate = (pixels: Pixel[]) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      const base64Payload = encodePixelsToBase64(pixels);
+
       ws.current.send(JSON.stringify({
         type: "canvas_pixel_update",
-        payload: pixels,
+        payload: base64Payload,
       }));
     }
   };

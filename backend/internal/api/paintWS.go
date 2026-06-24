@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"paint.pecet.it/pkg/guardian"
 	"paint.pecet.it/pkg/paint"
 	"paint.pecet.it/pkg/wsmanager"
 )
@@ -30,15 +31,16 @@ func (api *Api) handlePaintWS(w http.ResponseWriter, r *http.Request) {
 		log.Fatal(err)
 		return
 	}
+	greq := guardian.GetGuardianRequest(r)
 
 	room, ok := api.wsM.GetRoom(roomName)
 	if !ok {
 		room = wsmanager.NewRoom(roomName)
 		p := paint.New(room, 800, 600)
-		go p.Run()
+		p.Run()
 		api.wsM.SetRoom(room, roomName)
-		go room.Run()
+		room.Run()
 	}
 
-	room.HandleNewConn(conn)
+	room.HandleNewClient(conn, greq)
 }

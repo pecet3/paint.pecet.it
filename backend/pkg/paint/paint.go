@@ -1,40 +1,43 @@
 package paint
 
 import (
+	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"image"
-	"image/color"
-	"log"
 	"sync"
 	"time"
 
 	"paint.pecet.it/pkg/wsmanager"
 )
 
-type Pixel struct {
-	X     int    `json:"x"`
-	Y     int    `json:"y"`
-	Color string `json:"color"`
+// offset  8
+type PixelFrame struct {
+	X uint16
+	Y uint16
+	R uint8
+	G uint8
+	B uint8
+	A uint8
 }
 
 type UpdateEvent struct {
-	Type    string  `json:"type"`
-	Payload []Pixel `json:"payload"`
+	Type    string `json:"type"`
+	Payload []byte `json:"payload"`
 }
 
 type Paint struct {
-	Room        *wsmanager.Room
-	Canvas      *image.RGBA
-	mu          sync.Mutex
-	pixelBuffer []Pixel
+	Room   *wsmanager.Room
+	Canvas *image.RGBA
+	mu     sync.Mutex
+
+	pixelFrameBuf []byte
 }
 
 func New(room *wsmanager.Room, width, height int) *Paint {
 	p := &Paint{
-		Room:        room,
-		Canvas:      image.NewRGBA(image.Rect(0, 0, width, height)),
-		pixelBuffer: make([]Pixel, 0),
+		Room:          room,
+		Canvas:        image.NewRGBA(image.Rect(0, 0, width, height)),
+		pixelFrameBuf: make([]byte, 0),
 	}
 
 	p.Room.RegisterEventHandler("canvas_pixel_update", p.handlePixelUpdate)
@@ -43,20 +46,27 @@ func New(room *wsmanager.Room, width, height int) *Paint {
 }
 
 func (p *Paint) handleJoinEvent(c *wsmanager.Client) {
-	log.Println("join ", c)
+	c.Log("joined to room")
+
 	p.mu.Lock()
 	bounds := p.Canvas.Bounds()
-	pixels := make([]Pixel, 0)
+
+	var frameBuf []byte
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			rgba := p.Canvas.RGBAAt(x, y)
 			if rgba.A > 0 {
-				pixels = append(pixels, Pixel{
-					X:     x,
-					Y:     y,
-					Color: fmt.Sprintf("#%02x%02x%02x", rgba.R, rgba.G, rgba.B),
-				})
+				var buf [8]byte
+
+				binary.LittleEndian.PutUint16(buf[0:2], uint16(x))
+				binary.LittleEndian.PutUint16(buf[2:4], uint16(y))
+
+				buf[4] = rgba.R
+				buf[5] = rgba.G
+				buf[6] = rgba.B
+				buf[7] = rgba.A
+				frameBuf = append(frameBuf, buf[:]...)
 			}
 		}
 	}
@@ -64,7 +74,7 @@ func (p *Paint) handleJoinEvent(c *wsmanager.Client) {
 
 	event := UpdateEvent{
 		Type:    "canvas_pixel_update",
-		Payload: pixels,
+		Payload: frameBuf,
 	}
 
 	data, err := json.Marshal(event)
@@ -74,54 +84,65 @@ func (p *Paint) handleJoinEvent(c *wsmanager.Client) {
 }
 
 func (p *Paint) handlePixelUpdate(evt *wsmanager.Event) {
-	var pixels []Pixel
-	err := json.Unmarshal(evt.Payload, &pixels)
+	var data []byte
+	err := json.Unmarshal(evt.Payload, &data)
 	if err != nil {
+		evt.Client.Log("unmarshal err: ", err)
+		return
+	}
+	if len(data) == 0 || len(data)%8 != 0 {
 		return
 	}
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	for _, px := range pixels {
-		p.Canvas.Set(px.X, px.Y, parseHexColor(px.Color))
-		p.pixelBuffer = append(p.pixelBuffer, px)
+	bounds := p.Canvas.Bounds()
+	canvasWidth := bounds.Max.X
+
+	for i := 0; i < len(data); i += 8 {
+		x := int(binary.LittleEndian.Uint16(data[i : i+2]))
+		y := int(binary.LittleEndian.Uint16(data[i+2 : i+4]))
+
+		if x < 0 || x >= bounds.Max.X || y < 0 || y >= bounds.Max.Y {
+			evt.Client.Log("err pixel bounds")
+			return
+		}
+
+		byteOffset := (y*canvasWidth + x) * 4
+
+		p.Canvas.Pix[byteOffset] = data[i+4]        // R
+		p.Canvas.Pix[byteOffset+1] = data[i+5]      // G
+		p.Canvas.Pix[byteOffset+2] = data[i+6]      // B
+		p.Canvas.Pix[byteOffset+3] = data[i+7] + 20 // A
+
 	}
+	p.pixelFrameBuf = append(p.pixelFrameBuf, data...)
 }
 
 func (p *Paint) Run() {
-	ticker := time.NewTicker(50 * time.Millisecond)
-	defer ticker.Stop()
+	go func() {
+		ticker := time.NewTicker(50 * time.Millisecond)
+		defer ticker.Stop()
 
-	for range ticker.C {
-		p.mu.Lock()
+		for range ticker.C {
+			p.mu.Lock()
 
-		if len(p.pixelBuffer) > 0 {
-			event := UpdateEvent{
-				Type:    "canvas_pixel_update",
-				Payload: p.pixelBuffer,
+			if len(p.pixelFrameBuf) > 0 {
+				event := UpdateEvent{
+					Type:    "canvas_pixel_update",
+					Payload: p.pixelFrameBuf,
+				}
+
+				data, err := json.Marshal(event)
+				if err == nil {
+					p.Room.Broadcast(data)
+				}
+
+				p.pixelFrameBuf = p.pixelFrameBuf[:0]
 			}
 
-			data, err := json.Marshal(event)
-			if err == nil {
-				p.Room.Broadcast(data)
-			}
-
-			p.pixelBuffer = make([]Pixel, 0)
+			p.mu.Unlock()
 		}
-
-		p.mu.Unlock()
-	}
-}
-
-func parseHexColor(s string) color.RGBA {
-	c := color.RGBA{A: 255}
-	if len(s) == 7 && s[0] == '#' {
-		var r, g, b uint8
-		fmt.Sscanf(s, "#%02x%02x%02x", &r, &g, &b)
-		c.R = r
-		c.G = g
-		c.B = b
-	}
-	return c
+	}()
 }

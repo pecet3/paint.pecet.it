@@ -2,6 +2,8 @@ package guardian
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"net/http"
 )
 
@@ -11,9 +13,20 @@ type User interface {
 }
 
 type Request struct {
+	Id  uint64
+	Req *http.Request
+	W   http.ResponseWriter
+
 	ClientInfo *ClientInfo
 	User       User
-	Req        *http.Request
+}
+
+func (r *Request) LogInfo() string {
+	return fmt.Sprintln("request id:", r.Id, "user uuid:", r.User.Uuid())
+}
+
+func (r *Request) Log(v ...any) {
+	log.Println(r.LogInfo(), v)
 }
 
 type contextKey string

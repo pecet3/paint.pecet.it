@@ -53,6 +53,20 @@
   }
 } */
 
+/* #root {
+  width: 1126px;
+  max-width: 100%;
+  margin: 0 auto;
+  text-align: center;
+  border-inline: 0px solid var(--border);
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  background-color: #b0b0b0;
+  background-image: radial-gradient(circle, #0d0f31 1.2px, transparent 1.2px);
+  background-size: 15px 15px;
+} */
 #root {
   width: 1126px;
   max-width: 100%;
