@@ -1,4 +1,4 @@
-package wsmanager
+package wardsocket
 
 import (
 	"encoding/json"
@@ -9,7 +9,3 @@ type Event struct {
 	Payload json.RawMessage `json:"payload"`
 	Client  *Client
 }
-
-type EventHandler = func(evt *Event)
-
-type EntranceEventHandler = func(client *Client)

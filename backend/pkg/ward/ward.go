@@ -4,19 +4,9 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/google/uuid"
 )
-
-type ClientInfo struct {
-	LastReqDuration   time.Duration
-	LastURL           string
-	LastMethod        string
-	LastPath          string
-	ActiveConnections int
-	Ip                string
-}
 
 type Ward struct {
 	reqCounter  uint64

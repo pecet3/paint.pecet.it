@@ -5,11 +5,21 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 )
 
 type User interface {
 	Name() string
 	Uuid() string
+}
+type ClientInfo struct {
+	Uuid              string
+	LastReqDuration   time.Duration
+	LastURL           string
+	LastMethod        string
+	LastPath          string
+	ActiveConnections int
+	Ip                string
 }
 
 type Request struct {

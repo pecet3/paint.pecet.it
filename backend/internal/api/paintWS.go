@@ -6,12 +6,14 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"paint.pecet.it/pkg/paint"
+	"paint.pecet.it/pkg/paintroom"
 	"paint.pecet.it/pkg/ward"
-	"paint.pecet.it/pkg/ward/wsmanager"
+	"paint.pecet.it/pkg/ward/wardsocket"
 )
 
 const bufSize = 1024 * 64 * 4
+
+const generalRoomIdent = "1"
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  bufSize,
@@ -21,27 +23,25 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func (api *Api) handlePaintWS(w http.ResponseWriter, r *http.Request) {
-	roomName := r.URL.Query().Get("room")
-	if roomName == "" {
-		roomName = "general"
-	}
-
-	conn, err := upgrader.Upgrade(w, r, nil)
+func (api *Api) handlePaintWS(wreq *ward.Request) {
+	conn, err := upgrader.Upgrade(wreq.ResponseWriter, wreq.Http, nil)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	greq := ward.GetWardRequest(r)
 
-	room, ok := api.wsM.GetRoom(roomName)
+	room, ok := api.wardsocket.GetRoom(generalRoomIdent)
 	if !ok {
-		room = wsmanager.NewRoom(roomName)
-		p := paint.New(room, 800, 600)
-		p.Run()
-		api.wsM.SetRoom(room, roomName)
-		room.Run()
+		room = wardsocket.NewRoom(generalRoomIdent)
+
+		paintroom.New(room).Run()
+
+		room.RegisterEventHandler("chat_message", func(evt *wardsocket.Event) {
+
+		})
+		api.wardsocket.SetRoom(room, generalRoomIdent)
+		room.Run(api.wardsocket)
 	}
 
-	room.HandleNewClient(conn, greq)
+	room.HandleNewClient(conn, wreq)
 }

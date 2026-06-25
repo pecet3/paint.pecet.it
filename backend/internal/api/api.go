@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"paint.pecet.it/pkg/ward"
-	"paint.pecet.it/pkg/ward/wsmanager"
+	"paint.pecet.it/pkg/ward/wardsocket"
 )
 
 const (
@@ -13,7 +13,7 @@ const (
 )
 
 type Api struct {
-	wsM *wsmanager.WsManager
+	wardsocket *wardsocket.WardSocket
 }
 
 func New() *Api {
@@ -21,7 +21,7 @@ func New() *Api {
 }
 
 // func (api *Api) Run() {
-// 	wsM := wsmanager.New()
+// 	wsM := wardsocket.New()
 // 	api.wsM = wsM
 
 // 	http.HandleFunc("/ws", api.handlePaintWS)
@@ -30,18 +30,18 @@ func New() *Api {
 // }
 
 func (api *Api) Run() {
-	wsM := wsmanager.New()
-	api.wsM = wsM
 	w := ward.New()
-	w.HandleFunc("/ws", api.handlePaintWS)
+	wardsocket := wardsocket.New(w)
+	api.wardsocket = wardsocket
 
-	w.Handle("/test", func(greq *ward.Request) {
-		greq.Write([]byte("aaaa"))
-	})
+	w.Handle("/ws", api.handlePaintWS)
+
+	w.Handle("/test", api.handleHelloWorld)
+
 	log.Println("Listening on port", port)
 	log.Fatal(http.ListenAndServe(port, w))
 }
 
-func (api *Api) HandleHelloWorld(req *ward.Request) {
-
+func (api *Api) handleHelloWorld(wreq *ward.Request) {
+	wreq.Write([]byte("hello world"))
 }

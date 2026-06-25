@@ -1,35 +1,37 @@
-package wsmanager
+package wardsocket
 
 import (
 	"errors"
 	"sync"
+
+	"paint.pecet.it/pkg/ward"
 )
 
-type WsManager struct {
+type WardSocket struct {
 	rooms map[string]*Room
 	mu    sync.Mutex
 }
 
-func New() *WsManager {
-	return &WsManager{
+func New(w *ward.Ward) *WardSocket {
+	return &WardSocket{
 		rooms: make(map[string]*Room),
 	}
 }
 
-func (m *WsManager) GetRoom(roomIdent string) (*Room, bool) {
+func (m *WardSocket) GetRoom(roomIdent string) (*Room, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	r, ok := m.rooms[roomIdent]
 	return r, ok
 }
 
-func (m *WsManager) SetRoom(room *Room, roomIdent string) {
+func (m *WardSocket) SetRoom(room *Room, roomIdent string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.rooms[roomIdent] = room
 }
 
-func (m *WsManager) DeleteRoom(roomIdent string) error {
+func (m *WardSocket) DeleteRoom(roomIdent string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if room, ok := m.rooms[roomIdent]; ok {

@@ -1,4 +1,4 @@
-package wsmanager
+package wardsocket
 
 import (
 	"encoding/json"
@@ -20,9 +20,10 @@ type Room struct {
 	leaveCh     chan *Client
 	eventCh     chan *Event
 
-	eventHandlers map[string]EventHandler
-	joinHandlers  []EntranceEventHandler
-	leaveHandlers []EntranceEventHandler
+	eventHandlers map[string]func(evt *Event)
+
+	joinHandlers  []func(client *Client)
+	leaveHandlers []func(client *Client)
 }
 
 func NewRoom(ident string) *Room {
@@ -34,9 +35,9 @@ func NewRoom(ident string) *Room {
 		leaveCh:     make(chan *Client),
 		eventCh:     make(chan *Event),
 
-		eventHandlers: make(map[string]EventHandler),
-		joinHandlers:  []EntranceEventHandler{},
-		leaveHandlers: []EntranceEventHandler{},
+		eventHandlers: make(map[string]func(evt *Event)),
+		joinHandlers:  []func(client *Client){},
+		leaveHandlers: []func(client *Client){},
 	}
 }
 
@@ -44,12 +45,12 @@ func (r *Room) Broadcast(msg json.RawMessage) {
 	r.broadcastCh <- msg
 }
 
-func (r *Room) KickClient(client *Client) {
+func (r *Room) LeaveClient(client *Client) {
 	r.leaveCh <- client
 }
 
-func (r *Room) HandleNewClient(conn *websocket.Conn, qreq *ward.Request) {
-	client := NewClient(r, conn, qreq)
+func (r *Room) HandleNewClient(conn *websocket.Conn, wreq *ward.Request) {
+	client := NewClient(r, conn, wreq)
 
 	r.joinCh <- client
 
@@ -57,7 +58,7 @@ func (r *Room) HandleNewClient(conn *websocket.Conn, qreq *ward.Request) {
 	go client.readPump(r)
 }
 
-func (r *Room) RegisterEventHandler(eventType string, handler EventHandler) {
+func (r *Room) RegisterEventHandler(eventType string, handler func(evt *Event)) {
 	r.eventHandlers[eventType] = handler
 }
 
@@ -69,7 +70,8 @@ func (r *Room) RegisterLeaveHandler(handler func(client *Client)) {
 	r.leaveHandlers = append(r.leaveHandlers, handler)
 }
 
-func (r *Room) Run() {
+func (r *Room) Run(wardSocket *WardSocket) {
+
 	go func() {
 		log.Printf("room: %s is listening ", r.Ident)
 		for {
