@@ -25,10 +25,10 @@ func (m *WardSocket) GetRoom(roomIdent string) (*Room, bool) {
 	return r, ok
 }
 
-func (m *WardSocket) SetRoom(room *Room, roomIdent string) {
+func (m *WardSocket) AddRoom(room *Room) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.rooms[roomIdent] = room
+	m.rooms[room.Ident] = room
 }
 
 func (m *WardSocket) DeleteRoom(roomIdent string) error {

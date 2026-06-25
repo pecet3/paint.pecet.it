@@ -32,15 +32,11 @@ func (api *Api) handlePaintWS(wreq *ward.Request) {
 
 	room, ok := api.wardsocket.GetRoom(generalRoomIdent)
 	if !ok {
-		room = wardsocket.NewRoom(generalRoomIdent)
-
-		paintroom.New(room).Run()
-
-		room.RegisterEventHandler("chat_message", func(evt *wardsocket.Event) {
-
-		})
-		api.wardsocket.SetRoom(room, generalRoomIdent)
-		room.Run(api.wardsocket)
+		r, ctx := wardsocket.NewRoom(generalRoomIdent).WithContext()
+		room = r
+		paintroom.New(room).Run(ctx)
+		api.wardsocket.AddRoom(room)
+		room.Run(ctx)
 	}
 
 	room.HandleNewClient(conn, wreq)

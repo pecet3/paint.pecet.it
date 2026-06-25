@@ -4,8 +4,6 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
-
-	"github.com/google/uuid"
 )
 
 type Ward struct {
@@ -50,25 +48,32 @@ func (ward *Ward) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		ward.hMu.Unlock()
 	}
-	gReq := &Request{
+	wreq := &Request{
 		Id:             atomic.AddUint64(&ward.reqCounter, 1),
 		ClientInfo:     client,
-		User:           &TestUser{},
+		User:           nUser,
 		Http:           r,
 		ResponseWriter: w,
 	}
 
-	rWithContext := SetWardRequest(r, gReq)
+	rWithContext := SetWardRequest(r, wreq)
 
 	ward.mux.ServeHTTP(w, rWithContext)
 }
 
-type TestUser struct {
+var nUser = &nullUser{}
+
+const (
+	nullUserUuid = "nullUserUuid"
+	nullUserName = "nullUserName"
+)
+
+type nullUser struct {
 }
 
-func (u *TestUser) Uuid() string {
-	return uuid.NewString()
+func (u *nullUser) Uuid() string {
+	return nullUserUuid
 }
-func (u *TestUser) Name() string {
-	return "test user"
+func (u *nullUser) Name() string {
+	return nullUserName
 }

@@ -3,7 +3,6 @@ package wardsocket
 import (
 	"encoding/json"
 	"log"
-	"sync"
 
 	"github.com/gorilla/websocket"
 	"paint.pecet.it/pkg/ward"
@@ -15,37 +14,6 @@ type Client struct {
 
 	sendCh    chan json.RawMessage
 	roomIdent string
-
-	stateMu sync.RWMutex
-	states  map[string]any
-}
-
-func (c *Client) RegisterState(key string, initialValue any) {
-	c.stateMu.Lock()
-	defer c.stateMu.Unlock()
-	c.states[key] = initialValue
-}
-
-func (c *Client) SetState(key string, value any) {
-	c.stateMu.Lock()
-	defer c.stateMu.Unlock()
-	c.states[key] = value
-}
-
-func (c *Client) GetState(key string) (any, bool) {
-	c.stateMu.RLock()
-	defer c.stateMu.RUnlock()
-	val, exists := c.states[key]
-	return val, exists
-}
-func GetClientStateAs[T any](c *Client, key string) (T, bool) {
-	var zero T
-	val, exists := c.GetState(key)
-	if !exists {
-		return zero, false
-	}
-	typedVal, ok := val.(T)
-	return typedVal, ok
 }
 
 func (c *Client) Log(v ...any) {

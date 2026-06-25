@@ -1,6 +1,7 @@
 package wardsocket
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 	"sync"
@@ -20,14 +21,17 @@ type Room struct {
 	leaveCh     chan *Client
 	eventCh     chan *Event
 
-	eventHandlers map[string]func(evt *Event)
+	eventHandlers map[string]func(context.Context, *Event)
 
-	joinHandlers  []func(client *Client)
-	leaveHandlers []func(client *Client)
+	joinHandlers  []func(context.Context, *Client)
+	leaveHandlers []func(context.Context, *Client)
+
+	cancel  context.CancelFunc
+	closeCh chan struct{}
 }
 
 func NewRoom(ident string) *Room {
-	return &Room{
+	r := &Room{
 		Ident:       ident,
 		clients:     make(map[*Client]bool),
 		broadcastCh: make(chan json.RawMessage),
@@ -35,10 +39,19 @@ func NewRoom(ident string) *Room {
 		leaveCh:     make(chan *Client),
 		eventCh:     make(chan *Event),
 
-		eventHandlers: make(map[string]func(evt *Event)),
-		joinHandlers:  []func(client *Client){},
-		leaveHandlers: []func(client *Client){},
+		eventHandlers: make(map[string]func(context.Context, *Event)),
+		joinHandlers:  []func(context.Context, *Client){},
+		leaveHandlers: []func(context.Context, *Client){},
+
+		closeCh: make(chan struct{}),
 	}
+	return r
+}
+
+func (r *Room) WithContext() (*Room, context.Context) {
+	ctx, cancel := context.WithCancel(context.Background())
+	r.cancel = cancel
+	return r, ctx
 }
 
 func (r *Room) Broadcast(msg json.RawMessage) {
@@ -58,20 +71,26 @@ func (r *Room) HandleNewClient(conn *websocket.Conn, wreq *ward.Request) {
 	go client.readPump(r)
 }
 
-func (r *Room) RegisterEventHandler(eventType string, handler func(evt *Event)) {
+func (r *Room) RegisterEventHandler(eventType string, handler func(context.Context, *Event)) {
 	r.eventHandlers[eventType] = handler
 }
 
-func (r *Room) RegisterJoinHandler(handler func(client *Client)) {
+func (r *Room) RegisterJoinHandler(handler func(context.Context, *Client)) {
 	r.joinHandlers = append(r.joinHandlers, handler)
 }
 
-func (r *Room) RegisterLeaveHandler(handler func(client *Client)) {
+func (r *Room) RegisterLeaveHandler(handler func(context.Context, *Client)) {
 	r.leaveHandlers = append(r.leaveHandlers, handler)
 }
 
-func (r *Room) Run(wardSocket *WardSocket) {
+func (r *Room) Close() {
+	<-r.closeCh
+	if r.cancel != nil {
+		r.cancel()
+	}
+}
 
+func (r *Room) Run(ctx context.Context) {
 	go func() {
 		log.Printf("room: %s is listening ", r.Ident)
 		for {
@@ -80,13 +99,13 @@ func (r *Room) Run(wardSocket *WardSocket) {
 				r.clients[client] = true
 				if len(r.joinHandlers) > 0 {
 					for _, handle := range r.joinHandlers {
-						handle(client)
+						handle(ctx, client)
 					}
 				}
 			case client := <-r.leaveCh:
 				if len(r.leaveHandlers) > 0 {
 					for _, handle := range r.leaveHandlers {
-						handle(client)
+						handle(ctx, client)
 					}
 				}
 				if _, ok := r.clients[client]; ok {
@@ -105,10 +124,18 @@ func (r *Room) Run(wardSocket *WardSocket) {
 				}
 			case msg := <-r.eventCh:
 				if handler, ok := r.eventHandlers[msg.Type]; ok {
-					go handler(msg)
+					go handler(ctx, msg)
 				} else {
 					log.Printf("Unhandled event type: %s", msg.Type)
 				}
+			case <-ctx.Done():
+				log.Println("closing room done")
+			case <-r.closeCh:
+				log.Println("closing room")
+				if r.cancel != nil {
+					r.cancel()
+				}
+
 			}
 		}
 	}()

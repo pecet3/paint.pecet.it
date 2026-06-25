@@ -1,6 +1,7 @@
 package paintroom
 
 import (
+	"context"
 	"encoding/json"
 	"image"
 	"sync"
@@ -38,7 +39,7 @@ func New(room *wardsocket.Room) *Paint {
 	return p
 }
 
-func (p *Paint) handleJoinEvent(c *wardsocket.Client) {
+func (p *Paint) handleJoinEvent(ctx context.Context, c *wardsocket.Client) {
 	c.Log("joined to room")
 
 	event := UpdateEvent{
@@ -52,7 +53,7 @@ func (p *Paint) handleJoinEvent(c *wardsocket.Client) {
 	}
 }
 
-func (p *Paint) handlePixelUpdate(evt *wardsocket.Event) {
+func (p *Paint) handlePixelUpdate(ctx context.Context, evt *wardsocket.Event) {
 	var data []byte
 	err := json.Unmarshal(evt.Payload, &data)
 	if err != nil {
@@ -65,28 +66,34 @@ func (p *Paint) handlePixelUpdate(evt *wardsocket.Event) {
 	p.setPixelFramesToBuffers(data)
 }
 
-func (p *Paint) Run() {
+func (p *Paint) Run(ctx context.Context) {
 	go func() {
 		ticker := time.NewTicker(30 * time.Millisecond)
 		defer ticker.Stop()
 
-		for range ticker.C {
-			p.mu.Lock()
-			if len(p.pixelFrameBuf) > 0 {
-				event := UpdateEvent{
-					Type:    "canvas_pixel_update",
-					Payload: p.pixelFrameBuf,
+		for {
+			select {
+			case <-ticker.C:
+				p.mu.Lock()
+				if len(p.pixelFrameBuf) > 0 {
+					event := UpdateEvent{
+						Type:    "canvas_pixel_update",
+						Payload: p.pixelFrameBuf,
+					}
+
+					data, err := json.Marshal(event)
+					if err == nil {
+						p.Room.Broadcast(data)
+					}
+
+					p.pixelFrameBuf = p.pixelFrameBuf[:0]
 				}
 
-				data, err := json.Marshal(event)
-				if err == nil {
-					p.Room.Broadcast(data)
-				}
-
-				p.pixelFrameBuf = p.pixelFrameBuf[:0]
+				p.mu.Unlock()
+			case <-ctx.Done():
+				return
 			}
 
-			p.mu.Unlock()
 		}
 	}()
 }
