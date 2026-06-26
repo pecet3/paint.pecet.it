@@ -1,12 +1,16 @@
-import React, { createContext, useContext, useState, type ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 
-
-
-
+interface User {
+    uuid: string;
+    name: string;
+}
 
 interface StoreContextType {
+    user: User | null;
     loading: boolean;
     error: string | null;
+    setUser: (user: User | null) => void;
+    checkAuth: () => Promise<void>;
 }
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
@@ -15,20 +19,37 @@ interface StoreProviderProps {
     children: ReactNode;
 }
 
-
 export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
-    const [loading, setLoading] = useState<boolean>(false);
+    const [user, setUser] = useState<User | null>(null);
+    const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
+    const checkAuth = async () => {
+        try {
+            setLoading(true);
+            const response = await fetch('/ping', { credentials: 'include' });
+
+            if (response.ok) {
+                const data: User = await response.json();
+                setUser(data);
+            } else {
+                setUser(null);
+            }
+        } catch (err) {
+            setError('Failed to authenticate connection');
+            setUser(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        checkAuth();
+    }, []);
 
     return (
-        <StoreContext.Provider value={{
-            loading,
-            error,
-
-        }}>
+        <StoreContext.Provider value={{ user, loading, error, setUser, checkAuth }}>
             {children}
-
         </StoreContext.Provider>
     );
 };

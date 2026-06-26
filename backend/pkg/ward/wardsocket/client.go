@@ -2,7 +2,6 @@ package wardsocket
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/gorilla/websocket"
 	"paint.pecet.it/pkg/ward"
@@ -12,17 +11,7 @@ type Client struct {
 	conn    *websocket.Conn
 	Request *ward.Request
 
-	sendCh    chan json.RawMessage
-	roomIdent string
-}
-
-func (c *Client) Log(v ...any) {
-	args := append([]any{"wardsocket room:", c.roomIdent}, v...)
-	c.Request.Log(args...)
-}
-func (c *Client) Logf(format string, v ...any) {
-	prefix := fmt.Sprintf("wardsocket room: %s ", c.roomIdent)
-	c.Request.Logf(prefix+format, v...)
+	sendCh chan json.RawMessage
 }
 
 func (c *Client) Send(msg json.RawMessage) {
@@ -30,7 +19,7 @@ func (c *Client) Send(msg json.RawMessage) {
 }
 
 func NewClient(r *Room, conn *websocket.Conn, wreq *ward.Request) *Client {
-	return &Client{conn: conn, sendCh: make(chan json.RawMessage), Request: wreq, roomIdent: r.Ident}
+	return &Client{conn: conn, sendCh: make(chan json.RawMessage), Request: wreq}
 }
 func (c *Client) readPump(r *Room) {
 	defer func() {
@@ -40,13 +29,13 @@ func (c *Client) readPump(r *Room) {
 	for {
 		_, bytes, err := c.conn.ReadMessage()
 		if err != nil {
-			c.Log("Ws read message err: %v", err)
+			c.Request.Log("Ws read message err: %v", err)
 			break
 		}
 
 		var e Event
 		if err := json.Unmarshal(bytes, &e); err != nil {
-			c.Log("parsing err JSON: %v", err)
+			c.Request.Log("parsing err JSON: %v", err)
 			continue
 		}
 		e.Client = c
@@ -64,7 +53,7 @@ func (c *Client) writePump(r *Room) {
 	for msg := range c.sendCh {
 		err := c.conn.WriteJSON(msg)
 		if err != nil {
-			c.Log(err)
+			c.Request.Log(err)
 			break
 		}
 	}

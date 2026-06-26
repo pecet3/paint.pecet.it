@@ -11,55 +11,21 @@ type Ward struct {
 	mux         *http.ServeMux
 	httpClients map[string]*ClientInfo
 	hMu         sync.RWMutex
-
-	basePath string
 }
 
-type Group struct {
-	ward        *Ward
-	path        string
-	middlewares []Middleware
-}
+// var ward = &Ward{
+// 	mux:         http.NewServeMux(),
+// 	httpClients: make(map[string]*ClientInfo),
+// }
 
-func (g *Group) Use(mws ...Middleware) {
-	g.middlewares = append(g.middlewares, mws...)
-}
+// type Group struct {
+// 	basePath string
+// }
 
-func (g *Group) combineMiddleware(mws []Middleware) []Middleware {
-	combined := make([]Middleware, 0, len(g.middlewares)+len(mws))
-	combined = append(combined, g.middlewares...)
-	combined = append(combined, mws...)
-	return combined
-}
-
-func (g *Group) Get(pattern string, handler func(wreq *Request), mws ...Middleware) {
-	g.ward.Get(g.path+pattern, handler, g.combineMiddleware(mws)...)
-}
-
-func (g *Group) Put(pattern string, handler func(wreq *Request), mws ...Middleware) {
-	g.ward.Put(g.path+pattern, handler, g.combineMiddleware(mws)...)
-}
-
-func (g *Group) Post(pattern string, handler func(wreq *Request), mws ...Middleware) {
-	g.ward.Post(g.path+pattern, handler, g.combineMiddleware(mws)...)
-}
-
-func (g *Group) Delete(pattern string, handler func(wreq *Request), mws ...Middleware) {
-	g.ward.Delete(g.path+pattern, handler, g.combineMiddleware(mws)...)
-}
-
-func New(basePath string) *Ward {
+func New() *Ward {
 	return &Ward{
 		mux:         http.NewServeMux(),
 		httpClients: make(map[string]*ClientInfo),
-		basePath:    basePath,
-	}
-}
-
-func (w *Ward) NewGroup(path string) *Group {
-	return &Group{
-		ward: w,
-		path: w.basePath + path,
 	}
 }
 
@@ -80,15 +46,12 @@ func (ward *Ward) middleware(pattern string, handler func(wreq *Request), mws ..
 func (ward *Ward) Get(pattern string, handler func(wreq *Request), mws ...Middleware) {
 	ward.middleware("GET "+pattern, handler, mws...)
 }
-
 func (ward *Ward) Put(pattern string, handler func(wreq *Request), mws ...Middleware) {
 	ward.middleware("PUT "+pattern, handler, mws...)
 }
-
 func (ward *Ward) Post(pattern string, handler func(wreq *Request), mws ...Middleware) {
 	ward.middleware("POST "+pattern, handler, mws...)
 }
-
 func (ward *Ward) Delete(pattern string, handler func(wreq *Request), mws ...Middleware) {
 	ward.middleware("DELETE "+pattern, handler, mws...)
 }
@@ -127,16 +90,16 @@ func (ward *Ward) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 var nUser = &nullUser{}
 
 const (
-	nullUserUuid = "null-user-uuid"
+	nullUserUuid = "nullUserUuid"
 	nullUserName = "nullUserName"
 )
 
-type nullUser struct{}
+type nullUser struct {
+}
 
 func (u *nullUser) Uuid() string {
 	return nullUserUuid
 }
-
 func (u *nullUser) Name() string {
 	return nullUserName
 }

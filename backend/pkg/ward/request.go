@@ -30,6 +30,10 @@ type Request struct {
 	User       User
 }
 
+func (r *Request) AssignUser(user User) {
+	r.User = user
+}
+
 func (r *Request) LogInfo() string {
 	return fmt.Sprintf("request id: %d user uuid: %s", r.Id, r.User.Uuid())
 }

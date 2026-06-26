@@ -40,7 +40,7 @@ func New(room *wardsocket.Room) *Paint {
 }
 
 func (p *Paint) handleJoinEvent(ctx context.Context, c *wardsocket.Client) {
-	c.Log("joined to room")
+	c.Request.Log("joined to room ", p.Room.Ident)
 
 	event := UpdateEvent{
 		Type:    "canvas_pixel_update",
@@ -57,7 +57,7 @@ func (p *Paint) handlePixelUpdate(ctx context.Context, evt *wardsocket.Event) {
 	var data []byte
 	err := json.Unmarshal(evt.Payload, &data)
 	if err != nil {
-		evt.Client.Log("unmarshal err: ", err)
+		evt.Client.Request.Log("unmarshal err: ", err)
 		return
 	}
 	if len(data) == 0 || len(data)%8 != 0 {

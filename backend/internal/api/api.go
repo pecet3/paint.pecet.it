@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"paint.pecet.it/internal/simpleauth"
 	"paint.pecet.it/pkg/ward"
 	"paint.pecet.it/pkg/ward/wardsocket"
 )
@@ -23,7 +24,7 @@ func New() *Api {
 const bufSize = 1024 * 64 * 4
 
 func (api *Api) Run() {
-	w := ward.New()
+	w := ward.New("/api")
 	wardsocket := wardsocket.New(w, &wardsocket.Upgrader{
 		ReadBufferSize:  bufSize,
 		WriteBufferSize: bufSize,
@@ -33,13 +34,17 @@ func (api *Api) Run() {
 	})
 
 	api.wardsocket = wardsocket
+	auth := simpleauth.New()
 
-	w.Get("/ws", api.handlePaintWS)
+	public := w.NewGroup("")
+	public.Post("/login", auth.LoginHandler)
+	public.Get("/hello", api.handleHelloWorld, api.someMiddleware(100))
 
-	w.Get("/test", api.handleHelloWorld)
+	protected := w.NewGroup("")
+	protected.Use(auth.AuthMiddleware)
 
-	w.Post("/test", api.handleHelloWorld)
-	w.Delete("/test", api.handleHelloWorld)
+	protected.Get("/ws", api.handlePaintWS)
+	protected.Get("/ping", auth.PingHandler)
 
 	log.Println("Listening on port", port)
 	log.Fatal(http.ListenAndServe(port, w))
@@ -47,4 +52,14 @@ func (api *Api) Run() {
 
 func (api *Api) handleHelloWorld(wreq *ward.Request) {
 	wreq.Write([]byte("hello world"))
+}
+
+func (api *Api) someMiddleware(perms int) ward.Middleware {
+	return func(next ward.Handler) ward.Handler {
+		return func(wreq *ward.Request) {
+			log.Println("[Middleware] Sprawdzam żądanie przed uruchomieniem handlera...", perms)
+
+			next(wreq)
+		}
+	}
 }
