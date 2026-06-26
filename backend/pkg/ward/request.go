@@ -31,11 +31,17 @@ type Request struct {
 }
 
 func (r *Request) LogInfo() string {
-	return fmt.Sprintln("request id:", r.Id, "user uuid:", r.User.Uuid())
+	return fmt.Sprintf("request id: %d user uuid: %s", r.Id, r.User.Uuid())
 }
 
 func (r *Request) Log(v ...any) {
-	log.Println(r.LogInfo(), v)
+	args := append([]any{r.LogInfo()}, v...)
+	log.Println(args...)
+}
+
+func (r *Request) Logf(format string, v ...any) {
+	prefix := r.LogInfo() + " "
+	log.Printf(prefix+format, v...)
 }
 
 type contextKey string

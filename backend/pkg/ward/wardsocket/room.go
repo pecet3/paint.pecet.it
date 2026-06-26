@@ -62,13 +62,19 @@ func (r *Room) LeaveClient(client *Client) {
 	r.leaveCh <- client
 }
 
-func (r *Room) HandleNewClient(conn *websocket.Conn, wreq *ward.Request) {
+func (r *Room) JoinConn(conn *websocket.Conn, wreq *ward.Request) {
 	client := NewClient(r, conn, wreq)
 
 	r.joinCh <- client
 
 	go client.writePump(r)
 	go client.readPump(r)
+}
+
+type Event struct {
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload"`
+	Client  *Client
 }
 
 func (r *Room) RegisterEventHandler(eventType string, handler func(context.Context, *Event)) {

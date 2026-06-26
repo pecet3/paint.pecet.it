@@ -27,10 +27,21 @@ func (ward *Ward) HandleFunc(pattern string, handler func(w http.ResponseWriter,
 func (ward *Ward) Handle(pattern string, handler func(wreq *Request)) {
 	ward.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
 		wreq := GetWardRequest(r)
-		wreq.Http = r
-		wreq.ResponseWriter = w
 		handler(wreq)
 	})
+}
+
+func (ward *Ward) Get(pattern string, handler func(wreq *Request)) {
+	ward.Handle("GET "+pattern, handler)
+}
+func (ward *Ward) Put(pattern string, handler func(wreq *Request)) {
+	ward.Handle("PUT "+pattern, handler)
+}
+func (ward *Ward) Post(pattern string, handler func(wreq *Request)) {
+	ward.Handle("POST "+pattern, handler)
+}
+func (ward *Ward) Delete(pattern string, handler func(wreq *Request)) {
+	ward.Handle("DELETE "+pattern, handler)
 }
 
 func (ward *Ward) ServeHTTP(w http.ResponseWriter, r *http.Request) {

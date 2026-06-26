@@ -2,7 +2,7 @@ package wardsocket
 
 import (
 	"encoding/json"
-	"log"
+	"fmt"
 
 	"github.com/gorilla/websocket"
 	"paint.pecet.it/pkg/ward"
@@ -17,7 +17,12 @@ type Client struct {
 }
 
 func (c *Client) Log(v ...any) {
-	log.Println("room:", c.roomIdent, c.Request.LogInfo(), v)
+	args := append([]any{"wardsocket room:", c.roomIdent}, v...)
+	c.Request.Log(args...)
+}
+func (c *Client) Logf(format string, v ...any) {
+	prefix := fmt.Sprintf("wardsocket room: %s ", c.roomIdent)
+	c.Request.Logf(prefix+format, v...)
 }
 
 func (c *Client) Send(msg json.RawMessage) {

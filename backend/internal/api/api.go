@@ -20,23 +20,26 @@ func New() *Api {
 	return &Api{}
 }
 
-// func (api *Api) Run() {
-// 	wsM := wardsocket.New()
-// 	api.wsM = wsM
-
-// 	http.HandleFunc("/ws", api.handlePaintWS)
-// 	log.Println("Listening on port", port)
-// 	log.Fatal(http.ListenAndServe(port, nil))
-// }
+const bufSize = 1024 * 64 * 4
 
 func (api *Api) Run() {
 	w := ward.New()
-	wardsocket := wardsocket.New(w)
+	wardsocket := wardsocket.New(w, &wardsocket.Upgrader{
+		ReadBufferSize:  bufSize,
+		WriteBufferSize: bufSize,
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	})
+
 	api.wardsocket = wardsocket
 
-	w.Handle("/ws", api.handlePaintWS)
+	w.Get("/ws", api.handlePaintWS)
 
-	w.Handle("/test", api.handleHelloWorld)
+	w.Get("/test", api.handleHelloWorld)
+
+	w.Post("/test", api.handleHelloWorld)
+	w.Delete("/test", api.handleHelloWorld)
 
 	log.Println("Listening on port", port)
 	log.Fatal(http.ListenAndServe(port, w))
