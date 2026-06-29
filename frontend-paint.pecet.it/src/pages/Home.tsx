@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PaintCanvas } from "../components/room/PaintCanvas";
 import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/room/pixel";
-import type { ChatItem, ChatMessage, Pixel, RoomUser, ServerMessage } from "../types";
+import type { ChatMessage, Pixel, RoomUser, ServerMessage } from "../types";
 import { Chat } from "../components/room/Chat";
 
 

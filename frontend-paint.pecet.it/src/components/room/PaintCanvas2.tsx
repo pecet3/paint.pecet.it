@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import type { Pixel } from '../../types';
 import { paintDataSendTimestampMs } from '../../config';
 
+
 interface PaintCanvasProps {
     onSendPixelUpdate: (pixels: Pixel[]) => void;
     incomingPixels: Pixel[] | null;
@@ -14,6 +15,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     const mainCanvasRef = useRef<HTMLCanvasElement>(null);
     const bufferCanvasRef = useRef<HTMLCanvasElement>(null);
 
+    // Nowe stany do obsługi tekstu i wyboru narzędzia
     const [tool, setTool] = useState<'draw' | 'text'>('draw');
     const [textValue, setTextValue] = useState<string>('Hello world');
     const [fontSize, setFontSize] = useState<number>(24);
@@ -22,8 +24,6 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     const [brushSize, setBrushSize] = useState<number>(4);
     const [isDrawing, setIsDrawing] = useState<boolean>(false);
     const lastPos = useRef<{ x: number; y: number } | null>(null);
-
-    const [mouseCoords, setMouseCoords] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
     const drawLine = (ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, c: string, size: number) => {
         ctx.strokeStyle = c;
@@ -37,6 +37,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
         ctx.closePath();
     };
 
+    // Nowa funkcja do rysowania tekstu
     const drawText = (ctx: CanvasRenderingContext2D, x: number, y: number, text: string, c: string, size: number) => {
         ctx.fillStyle = c;
         ctx.font = `${size}px Arial`;
@@ -104,8 +105,6 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
         const x = Math.round(e.clientX - rect.left);
         const y = Math.round(e.clientY - rect.top);
 
-        setMouseCoords({ x, y });
-
         const mainCtx = mainCanvas.getContext('2d');
         const bufferCtx = bufferCanvas.getContext('2d');
         if (!mainCtx || !bufferCtx) return;
@@ -117,6 +116,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                 drawLine(mainCtx, x, y, x, y, color, brushSize);
                 drawLine(bufferCtx, x, y, x, y, color, brushSize);
             } else if (tool === 'text') {
+                // Rysuje tekst w miejscu kliknięcia
                 drawText(mainCtx, x, y, textValue, color, fontSize);
                 drawText(bufferCtx, x, y, textValue, color, fontSize);
             }
@@ -137,48 +137,49 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     };
 
     return (
-        <div className="flex flex-col items-center gap-4">
-            <div className="flex flex-wrap gap-4 p-2.5 bg-gray-100 rounded-lg justify-center text-sm">
-                <label className="flex items-center">
-                    Tool:
-                    <select value={tool} onChange={(e) => setTool(e.target.value as 'draw' | 'text')} className="ml-2 border rounded p-1">
-                        <option value="draw">Draw</option>
-                        <option value="text">Text</option>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', padding: '10px', background: '#f0f0f0', borderRadius: '8px', justifyContent: 'center' }}>
+                <label>
+                    Narzędzie:
+                    <select value={tool} onChange={(e) => setTool(e.target.value as 'draw' | 'text')} style={{ marginLeft: '5px' }}>
+                        <option value="draw">Rysowanie</option>
+                        <option value="text">Tekst</option>
                     </select>
                 </label>
 
-                <label className="flex items-center">
-                    Color:
-                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="ml-2 cursor-pointer h-8 w-8 p-0 border-0" />
+                <label>
+                    Kolor:
+                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} style={{ marginLeft: '5px' }} />
                 </label>
 
                 {tool === 'draw' && (
-                    <label className="flex items-center">
-                        Brush size: {brushSize}px
-                        <input type="range" min="1" max="10" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="ml-2" />
+                    <label>
+                        Grubość pędzla: {brushSize}px
+                        <input type="range" min="1" max="10"
+                            value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} style={{ marginLeft: '5px' }} />
                     </label>
                 )}
 
                 {tool === 'text' && (
                     <>
-                        <label className="flex items-center">
-                            Text:
-                            <input type="text" value={textValue} onChange={(e) => setTextValue(e.target.value)} className="ml-2 border rounded p-1" />
+                        <label>
+                            Tekst:
+                            <input type="text" value={textValue} onChange={(e) => setTextValue(e.target.value)} style={{ marginLeft: '5px' }} />
                         </label>
-                        <label className="flex items-center">
-                            Size: {fontSize}px
-                            <input type="range" min="5" max="20" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="ml-2" />
+                        <label>
+                            Rozmiar: {fontSize}px
+                            <input type="range" min="5" max="20" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} style={{ marginLeft: '5px' }} />
                         </label>
                     </>
                 )}
             </div>
 
-            <div className="relative w-[800px] h-[600px]">
+            <div style={{ position: 'relative', width: 800, height: 600 }}>
                 <canvas
                     ref={mainCanvasRef}
                     width={800}
                     height={600}
-                    className={`absolute top-0 left-0 border-2 border-gray-800 bg-white ${tool === 'text' ? 'cursor-text' : 'cursor-crosshair'}`}
+                    style={{ position: 'absolute', top: 0, left: 0, border: '2px solid #333', cursor: tool === 'text' ? 'text' : 'crosshair', backgroundColor: '#fff' }}
                     onMouseDown={(e) => handleMouseEvent(e, 'start')}
                     onMouseMove={(e) => handleMouseEvent(e, 'draw')}
                     onMouseUp={(e) => handleMouseEvent(e, 'end')}
@@ -188,12 +189,8 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                     ref={bufferCanvasRef}
                     width={800}
                     height={600}
-                    className="hidden"
+                    style={{ display: 'none' }}
                 />
-            </div>
-
-            <div className=" text-2xl font-mono tracking-wide">
-                X: {mouseCoords.x.toString().padStart(3, '0')} | Y: {mouseCoords.y.toString().padStart(3, '0')}
             </div>
         </div>
     );

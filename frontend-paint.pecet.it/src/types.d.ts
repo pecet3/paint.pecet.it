@@ -29,6 +29,3 @@ export interface RoomUser {
     ban_duration_seconds: number;
 }
 
-export type ChatItem =
-    | { type: "chat"; data: ChatMessage }
-    | { type: "server"; data: ServerMessage };

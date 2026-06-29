@@ -3,7 +3,6 @@ package paintroom
 import (
 	"context"
 	"encoding/json"
-	"time"
 
 	"paint.pecet.it/pkg/ward/wardsocket"
 )
@@ -13,23 +12,14 @@ type Event struct {
 	Payload []byte `json:"payload"`
 }
 
-type ChatMessage struct {
-	Name    string    `json:"name"`
-	Uuid    string    `json:"uuid"`
-	Message string    `json:"message"`
-	Date    time.Time `json:"date"`
-}
-
-type ServerMessage struct {
-	Message string    `json:"message"`
-	Date    time.Time `json:"date"`
-}
-
 func (p *Paint) handleJoinEvent(ctx context.Context, c *wardsocket.Client) {
+	p.mu.Lock()
+	p.saveCanvasBytes()
 	canvasEvent := Event{
 		Type:    "canvas_pixel_update",
-		Payload: p.getAllPixelFrames(),
+		Payload: p.getCanvasBytes(),
 	}
+	p.mu.Unlock()
 	if data, err := json.Marshal(canvasEvent); err == nil {
 		c.Send(data)
 	}
@@ -46,5 +36,7 @@ func (p *Paint) handlePixelUpdate(ctx context.Context, evt *wardsocket.Event) {
 	if len(data) == 0 || len(data)%8 != 0 {
 		return
 	}
-	p.setPixelFramesToBuffers(data)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.streamBuf = append(p.streamBuf, data...)
 }
