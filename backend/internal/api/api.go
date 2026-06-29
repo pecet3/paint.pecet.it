@@ -38,7 +38,7 @@ func (api *Api) Run() {
 
 	public := w.NewGroup("")
 	public.Post("/login", auth.LoginHandler)
-	public.Get("/hello", api.handleHelloWorld, api.someMiddleware(100))
+	public.Get("/hello", api.handleHelloWorld)
 
 	protected := w.NewGroup("")
 	protected.Use(auth.AuthMiddleware)
@@ -52,14 +52,4 @@ func (api *Api) Run() {
 
 func (api *Api) handleHelloWorld(wreq *ward.Request) {
 	wreq.Write([]byte("hello world"))
-}
-
-func (api *Api) someMiddleware(perms int) ward.Middleware {
-	return func(next ward.Handler) ward.Handler {
-		return func(wreq *ward.Request) {
-			log.Println("[Middleware] Sprawdzam żądanie przed uruchomieniem handlera...", perms)
-
-			next(wreq)
-		}
-	}
 }

@@ -13,25 +13,27 @@ type Event struct {
 	Payload []byte `json:"payload"`
 }
 
-type ChatMessageEvent struct {
+type ChatMessage struct {
 	Name    string    `json:"name"`
 	Uuid    string    `json:"uuid"`
 	Message string    `json:"message"`
 	Date    time.Time `json:"date"`
 }
 
-func (p *Paint) handleJoinEvent(ctx context.Context, c *wardsocket.Client) {
-	c.Request.Log("joined to room ", p.Room.Ident)
+type ServerMessage struct {
+	Message string    `json:"message"`
+	Date    time.Time `json:"date"`
+}
 
-	event := Event{
+func (p *Paint) handleJoinEvent(ctx context.Context, c *wardsocket.Client) {
+	canvasEvent := Event{
 		Type:    "canvas_pixel_update",
 		Payload: p.getAllPixelFrames(),
 	}
-
-	data, err := json.Marshal(event)
-	if err == nil {
+	if data, err := json.Marshal(canvasEvent); err == nil {
 		c.Send(data)
 	}
+
 }
 
 func (p *Paint) handlePixelUpdate(ctx context.Context, evt *wardsocket.Event) {

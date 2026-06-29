@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"paint.pecet.it/pkg/ward"
 	"paint.pecet.it/pkg/ward/wardsocket"
 )
 
@@ -16,15 +15,10 @@ const (
 	height = 600
 )
 
-type PaintUser struct {
-	User ward.User
-}
 type Paint struct {
 	Room   *wardsocket.Room
 	Canvas *image.RGBA
 	mu     sync.Mutex
-
-	PaintUsers map[string]PaintUser
 
 	pixelFrameBuf []byte
 }

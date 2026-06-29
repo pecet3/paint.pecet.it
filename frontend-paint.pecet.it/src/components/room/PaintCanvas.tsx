@@ -116,7 +116,6 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                 drawLine(mainCtx, x, y, x, y, color, brushSize);
                 drawLine(bufferCtx, x, y, x, y, color, brushSize);
             } else if (tool === 'text') {
-                // Rysuje tekst w miejscu kliknięcia
                 drawText(mainCtx, x, y, textValue, color, fontSize);
                 drawText(bufferCtx, x, y, textValue, color, fontSize);
             }

@@ -29,13 +29,13 @@ func (c *Client) readPump(r *Room) {
 	for {
 		_, bytes, err := c.conn.ReadMessage()
 		if err != nil {
-			c.Request.Log("Ws read message err: %v", err)
+			c.Request.Log("Ws read message err", err)
 			break
 		}
 
 		var e Event
 		if err := json.Unmarshal(bytes, &e); err != nil {
-			c.Request.Log("parsing err JSON: %v", err)
+			c.Request.Log("parsing err JSON:", err)
 			continue
 		}
 		e.Client = c

@@ -3,6 +3,7 @@ package wardsocket
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"sync"
 
@@ -48,8 +49,8 @@ func NewRoom(ident string) *Room {
 	return r
 }
 
-func (r *Room) WithContext() (*Room, context.Context) {
-	ctx, cancel := context.WithCancel(context.Background())
+func (r *Room) WithCancelContext(ctx context.Context) (*Room, context.Context) {
+	ctx, cancel := context.WithCancel(ctx)
 	r.cancel = cancel
 	return r, ctx
 }
@@ -91,54 +92,69 @@ func (r *Room) RegisterLeaveHandler(handler func(context.Context, *Client)) {
 
 func (r *Room) Close() {
 	<-r.closeCh
-	if r.cancel != nil {
-		r.cancel()
-	}
+}
+
+func (r *Room) LogInfo() string {
+	return fmt.Sprintf("room: %s", r.Ident)
+}
+
+func (r *Room) Log(v ...any) {
+	args := append([]any{r.LogInfo()}, v...)
+	log.Println(args...)
 }
 
 func (r *Room) Run(ctx context.Context) {
 	go func() {
-		log.Printf("room: %s is listening ", r.Ident)
+		r.Log("is listening")
 		for {
 			select {
 			case client := <-r.joinCh:
 				r.clients[client] = true
 				if len(r.joinHandlers) > 0 {
 					for _, handle := range r.joinHandlers {
-						handle(ctx, client)
+						go handle(ctx, client)
 					}
 				}
 			case client := <-r.leaveCh:
 				if len(r.leaveHandlers) > 0 {
 					for _, handle := range r.leaveHandlers {
-						handle(ctx, client)
+						go handle(ctx, client)
 					}
 				}
+				r.cMu.Lock()
 				if _, ok := r.clients[client]; ok {
 					delete(r.clients, client)
 					close(client.sendCh)
 				}
+				r.cMu.Unlock()
 
 			case msg := <-r.broadcastCh:
+				r.cMu.RLock()
 				for client := range r.clients {
 					select {
 					case client.sendCh <- msg:
 					default:
-						close(client.sendCh)
-						delete(r.clients, client)
 					}
 				}
+				r.cMu.RUnlock()
+
 			case msg := <-r.eventCh:
 				if handler, ok := r.eventHandlers[msg.Type]; ok {
 					go handler(ctx, msg)
 				} else {
-					log.Printf("Unhandled event type: %s", msg.Type)
+					r.Log("Unhandled event type: %s", msg.Type)
 				}
 			case <-ctx.Done():
 				log.Println("closing room done")
 			case <-r.closeCh:
-				log.Println("closing room")
+				r.Log("closing room")
+				for client := range r.clients {
+					close(client.sendCh)
+					delete(r.clients, client)
+				}
+				r.Log("removed all clients")
 				if r.cancel != nil {
+					r.Log("executing context cancel func")
 					r.cancel()
 				}
 
