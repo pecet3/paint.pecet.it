@@ -3,10 +3,11 @@ package api
 import (
 	"context"
 
-	"paint.pecet.it/pkg/paintroom"
+	"paint.pecet.it/internal/paintroom"
+	"paint.pecet.it/internal/usermanager"
 	"paint.pecet.it/pkg/ward"
 	"paint.pecet.it/pkg/ward/wardsocket"
-	"paint.pecet.it/pkg/ward/wardsocket/usermanager"
+	"paint.pecet.it/pkg/ward/wardsocket/webrtc"
 )
 
 const generalRoomIdent = "1"
@@ -16,9 +17,14 @@ func (api *Api) handlePaintWS(wreq *ward.Request) {
 	if !ok {
 		ctx := context.Background()
 		r, ctx := wardsocket.NewRoom(generalRoomIdent).WithCancelContext(ctx)
-		um := usermanager.New(r)
-		ctx = um.WithContext(ctx)
-		paintroom.New(r).Run(ctx)
+
+		usermanager.New(r).RegisterHandlers()
+		webrtc.New(r).RegisterHandlers()
+
+		pr := paintroom.New(r)
+		pr.RegisterHandlers()
+		pr.Run(ctx)
+
 		api.wardsocket.AddRoom(r)
 		r.Run(ctx)
 

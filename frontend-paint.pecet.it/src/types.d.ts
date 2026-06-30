@@ -29,3 +29,9 @@ export interface RoomUser {
     ban_duration_seconds: number;
 }
 
+export interface WebRTCSignalPayload {
+    targetUuid: string;
+    senderUuid: string;
+    signalType: "offer" | "answer" | "ice";
+    data: any;
+}

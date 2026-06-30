@@ -32,9 +32,11 @@ func New(room *wardsocket.Room) *Paint {
 		streamBuf: make([]byte, 0),
 		saveBuf:   make([]byte, 0),
 	}
+	return p
+}
+func (p *Paint) RegisterHandlers() {
 	p.Room.RegisterEventHandler("canvas_pixel_update", p.handlePixelUpdate)
 	p.Room.RegisterJoinHandler(p.handleJoinEvent)
-	return p
 }
 
 func (p *Paint) Run(ctx context.Context) {
@@ -50,54 +52,56 @@ func (p *Paint) Run(ctx context.Context) {
 		for {
 			select {
 			case <-streamTicker.C:
-				p.saveBuf = append(p.saveBuf, p.streamBuf...)
-				p.mu.Lock()
-				if len(p.streamBuf) > 0 {
+				go func() {
+					p.mu.Lock()
+					if len(p.streamBuf) > 0 {
+						event := Event{
+							Type:    "canvas_pixel_update",
+							Payload: p.streamBuf,
+						}
+
+						data, err := json.Marshal(event)
+						if err == nil {
+							p.Room.Broadcast(data)
+						}
+						p.streamBuf = p.streamBuf[:0]
+					}
+					p.mu.Unlock()
+				}()
+			case <-saveTicker.C:
+				go func() {
+					p.Room.Log("paint save ticker")
+					if len(p.saveBuf) == 0 {
+						return
+					}
+					start := time.Now()
+					p.mu.Lock()
+					p.saveCanvasBytes()
+					p.mu.Unlock()
+					log.Println(time.Since(start))
+				}()
+			case <-syncTicker.C:
+				go func() {
+					p.Room.Log("paint sync ticker")
+
+					start := time.Now()
+
+					p.mu.Lock()
+					payload := p.getCanvasBytes()
 					event := Event{
 						Type:    "canvas_pixel_update",
-						Payload: p.streamBuf,
+						Payload: payload,
 					}
 
 					data, err := json.Marshal(event)
 					if err == nil {
 						p.Room.Broadcast(data)
 					}
-					p.streamBuf = p.streamBuf[:0]
-				}
-				p.mu.Unlock()
+					p.mu.Unlock()
 
-			case <-saveTicker.C:
-				p.Room.Log("paint save ticker")
-				if len(p.saveBuf) == 0 {
-					continue
-				}
+					log.Println(time.Since(start))
 
-				start := time.Now()
-				p.mu.Lock()
-				p.saveCanvasBytes()
-				p.mu.Unlock()
-
-				log.Println(time.Since(start))
-			case <-syncTicker.C:
-				p.Room.Log("paint sync ticker")
-
-				start := time.Now()
-
-				p.mu.Lock()
-				payload := p.getCanvasBytes()
-				event := Event{
-					Type:    "canvas_pixel_update",
-					Payload: payload,
-				}
-
-				data, err := json.Marshal(event)
-				if err == nil {
-					p.Room.Broadcast(data)
-				}
-				p.mu.Unlock()
-
-				log.Println(time.Since(start))
-
+				}()
 			case <-ctx.Done():
 				return
 			}

@@ -20,8 +20,17 @@ type ServerMessage struct {
 	Date    time.Time `json:"date"`
 }
 
+type RoomUserEvt struct {
+	UUID               string `json:"uuid"`
+	Name               string `json:"name"`
+	IsOperator         bool   `json:"is_operator"`
+	IsConnected        bool   `json:"is_connected"`
+	BanDurationSeconds int64  `json:"ban_duration_seconds"`
+}
+
 func (m *Manager) handleJoin(ctx context.Context, client *wardsocket.Client) {
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	uuid := client.Request.User.Uuid()
 	user, exists := m.users[uuid]
 
@@ -48,15 +57,10 @@ func (m *Manager) handleJoin(ctx context.Context, client *wardsocket.Client) {
 			user.IsOperator = true
 		}
 	}
-	m.mu.Unlock()
 
 	m.SendChatHistory(client)
-
-	serverMsg := ServerMessage{
-		Message: client.Request.User.Name() + " joined",
-		Date:    time.Now(),
-	}
-	m.broadcastEvent("server_message", serverMsg)
+	m.BroadcastUserList()
+	m.BroadcastServerMessage(client.Request.User.Name() + " joined")
 }
 
 func (m *Manager) handleLeave(ctx context.Context, client *wardsocket.Client) {
@@ -164,60 +168,4 @@ func (m *Manager) handleUpdateBanDuration(ctx context.Context, event *wardsocket
 		target.BanDuration = time.Duration(payload.DurationSeconds) * time.Second
 		m.broadcastEvent("update_ban_duration", payload)
 	}
-}
-
-func (m *Manager) broadcastEvent(eventType string, payload any) {
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return
-	}
-
-	evt := wardsocket.Event{
-		Type:    eventType,
-		Payload: data,
-	}
-	evtData, err := json.Marshal(evt)
-	if err != nil {
-		return
-	}
-
-	m.room.Broadcast(evtData)
-}
-
-func (m *Manager) BroadcastServerMessage(msg string) {
-	serverMsg := ServerMessage{
-		Message: msg,
-		Date:    time.Now(),
-	}
-	m.broadcastEvent("server_message", serverMsg)
-}
-func (m *Manager) SendChatHistory(client *wardsocket.Client) {
-	for _, msg := range m.chatHistory {
-		data, err := json.Marshal(msg)
-		if err != nil {
-			continue
-		}
-		evt := wardsocket.Event{
-			Type:    "chat_message",
-			Payload: data,
-		}
-		evtData, err := json.Marshal(evt)
-		if err != nil {
-			continue
-		}
-		client.Send(evtData)
-	}
-}
-func (m *Manager) BroadcastUserList() {
-	var list []map[string]any
-	for _, u := range m.users {
-		list = append(list, map[string]any{
-			"uuid":                 u.WardUser.Uuid(),
-			"name":                 u.WardUser.Name(),
-			"is_operator":          u.IsOperator,
-			"is_connected":         u.IsConnected,
-			"ban_duration_seconds": int64(u.BanDuration.Seconds()),
-		})
-	}
-	m.broadcastEvent("update_users_list", list)
 }

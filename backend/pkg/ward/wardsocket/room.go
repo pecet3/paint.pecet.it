@@ -131,14 +131,12 @@ func (r *Room) Run(ctx context.Context) {
 			case msg := <-r.broadcastCh:
 				r.cMu.RLock()
 				for client := range r.clients {
-					select {
-					case client.sendCh <- msg:
-					default:
-					}
+					client.sendCh <- msg
 				}
 				r.cMu.RUnlock()
 
 			case msg := <-r.eventCh:
+				r.Log(msg.Type)
 				if handler, ok := r.eventHandlers[msg.Type]; ok {
 					go handler(ctx, msg)
 				} else {

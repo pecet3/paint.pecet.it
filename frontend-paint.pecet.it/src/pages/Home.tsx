@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PaintCanvas } from "../components/room/PaintCanvas";
 import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/room/pixel";
-import type { ChatMessage, Pixel, RoomUser, ServerMessage } from "../types";
+import type { ChatMessage, Pixel, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
 import { Chat } from "../components/room/Chat";
+import { WebRTCManager } from "../components/room/WebRTCManager";
 
 
 export const Home: React.FC = () => {
@@ -10,13 +11,15 @@ export const Home: React.FC = () => {
   const [incomingPixels, setIncomingPixels] = useState<Pixel[] | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [users, setUsers] = useState<RoomUser[]>([]);
+  const [incomingSignal, setIncomingSignal] = useState<WebRTCSignalPayload | null>(null);
+
+
 
   const [serverMessage, setServerMessage] = useState<ServerMessage | null>(null)
   useEffect(() => {
     ws.current = new WebSocket("/ws");
 
     ws.current.onmessage = (message: MessageEvent) => {
-      console.log(message);
       const data = JSON.parse(message.data);
       switch (data.type) {
         case "canvas_pixel_update":
@@ -26,6 +29,7 @@ export const Home: React.FC = () => {
           setChatMessages(prev => [...prev, data.payload as ChatMessage]);
           break;
         case "server_message":
+          console.log(data.payload)
           setServerMessage(data.payload as ServerMessage)
           break;
         case "update_users_list":
@@ -33,6 +37,10 @@ export const Home: React.FC = () => {
           break;
         case "update_is_operator":
         case "update_ban_duration":
+          break;
+        case "webrtc_signal":
+          console.log(data.payload)
+          setIncomingSignal(data.payload as WebRTCSignalPayload);
           break;
         default:
           console.warn(data.type);
@@ -65,6 +73,16 @@ export const Home: React.FC = () => {
       );
     }
   };
+  const handleSendSignal = (payload: WebRTCSignalPayload) => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(
+        JSON.stringify({
+          type: "webrtc_signal",
+          payload,
+        })
+      );
+    }
+  };
   return (
     <div >
       <div className="flex">
@@ -72,11 +90,19 @@ export const Home: React.FC = () => {
           onSendPixelUpdate={handleSendPixelUpdate}
           incomingPixels={incomingPixels}
         />
-        <Chat messages={chatMessages} onSendMessage={handleSendChatMessage} />
 
       </div>
       <div className="flex text-2xl">
         {serverMessage?.message}
+      </div>
+      <div className="w-full flex">
+        <Chat users={users} messages={chatMessages} onSendMessage={handleSendChatMessage} />
+
+        <WebRTCManager
+          users={users}
+          incomingSignal={incomingSignal}
+          onSendSignal={handleSendSignal}
+        />
       </div>
     </div>
   );

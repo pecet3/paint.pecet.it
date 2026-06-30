@@ -39,4 +39,5 @@ func (p *Paint) handlePixelUpdate(ctx context.Context, evt *wardsocket.Event) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.streamBuf = append(p.streamBuf, data...)
+	p.saveBuf = append(p.saveBuf, p.streamBuf...)
 }

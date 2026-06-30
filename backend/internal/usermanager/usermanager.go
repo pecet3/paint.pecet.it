@@ -49,13 +49,15 @@ func New(room *wardsocket.Room) *Manager {
 		chatHistory: make([]ChatMessage, 0, 64),
 	}
 
-	room.RegisterJoinHandler(m.handleJoin)
-	room.RegisterLeaveHandler(m.handleLeave)
-	room.RegisterEventHandler("chat_message", m.handleChatMessage)
-	room.RegisterEventHandler("update_is_operator", m.handleUpdateOperator)
-	room.RegisterEventHandler("update_ban_duration", m.handleUpdateBanDuration)
-
 	return m
+}
+
+func (m *Manager) RegisterHandlers() {
+	m.room.RegisterJoinHandler(m.handleJoin)
+	m.room.RegisterLeaveHandler(m.handleLeave)
+	m.room.RegisterEventHandler("chat_message", m.handleChatMessage)
+	m.room.RegisterEventHandler("update_is_operator", m.handleUpdateOperator)
+	m.room.RegisterEventHandler("update_ban_duration", m.handleUpdateBanDuration)
 }
 
 func (m *Manager) WithContext(ctx context.Context) context.Context {
