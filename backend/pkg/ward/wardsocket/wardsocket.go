@@ -1,9 +1,7 @@
 package wardsocket
 
 import (
-	"errors"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -19,74 +17,51 @@ type Upgrader struct {
 }
 
 type WardSocket struct {
-	rooms map[string]*Room
-	mu    sync.Mutex
-
 	upgrader *websocket.Upgrader
 }
 
-//	if upgrader == nil {
-//			upgrader = &Upgrader{
-//				ReadBufferSize:  1024,
-//				WriteBufferSize: 1024,
-//				CheckOrigin: func(r *http.Request) bool {
-//					return true
-//				},
-//			}
-//		}
-func New(w *ward.Ward, upgrader *Upgrader) *WardSocket {
+func New(upgrader *Upgrader) *WardSocket {
 	if upgrader == nil {
 		upgrader = &Upgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
-			CheckOrigin: func(r *http.Request) bool {
-				return true
-			},
+			HandshakeTimeout:  5 * time.Second,
+			ReadBufferSize:    1024,
+			WriteBufferSize:   1024,
+			CheckOrigin:       func(r *http.Request) bool { return true },
+			EnableCompression: false,
 		}
 	}
-	gorillaUpgrader := &websocket.Upgrader{
-		HandshakeTimeout:  upgrader.HandshakeTimeout,
-		ReadBufferSize:    upgrader.ReadBufferSize,
-		WriteBufferSize:   upgrader.WriteBufferSize,
-		CheckOrigin:       upgrader.CheckOrigin,
-		EnableCompression: upgrader.EnableCompression,
+	ws := &WardSocket{
+		upgrader: &websocket.Upgrader{
+			HandshakeTimeout:  upgrader.HandshakeTimeout,
+			ReadBufferSize:    upgrader.ReadBufferSize,
+			WriteBufferSize:   upgrader.WriteBufferSize,
+			CheckOrigin:       upgrader.CheckOrigin,
+			EnableCompression: upgrader.EnableCompression,
+		},
 	}
-	return &WardSocket{
-		rooms:    make(map[string]*Room),
-		upgrader: gorillaUpgrader,
+	return ws
+}
+
+func (ws *WardSocket) UpgradeRequest(wreq *ward.Request) (*Client, error) {
+	ug := &websocket.Upgrader{
+		HandshakeTimeout:  ws.upgrader.HandshakeTimeout,
+		ReadBufferSize:    ws.upgrader.ReadBufferSize,
+		WriteBufferSize:   ws.upgrader.WriteBufferSize,
+		CheckOrigin:       ws.upgrader.CheckOrigin,
+		EnableCompression: ws.upgrader.EnableCompression,
 	}
-}
-
-func (m *WardSocket) GetRoom(roomIdent string) (*Room, bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	r, ok := m.rooms[roomIdent]
-	return r, ok
-}
-
-func (m *WardSocket) AddRoom(room *Room) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.rooms[room.Ident] = room
-}
-
-func (m *WardSocket) DeleteRoom(roomIdent string) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if room, ok := m.rooms[roomIdent]; ok {
-		room.Close()
-		delete(m.rooms, roomIdent)
-		return nil
+	conn, err := ug.Upgrade(wreq.ResponseWriter, wreq.Http, nil)
+	if err != nil {
+		return nil, err
 	}
-	return errors.New("room not found: " + roomIdent)
+	return NewClient(conn, wreq), nil
 }
 
-func (w *WardSocket) AssignRequestToRoom(wreq *ward.Request, room *Room) error {
-	conn, err := w.upgrader.Upgrade(wreq.ResponseWriter, wreq.Http, nil)
+func (ws *WardSocket) AssignRequestToChannel(wreq *ward.Request, channel *Channel) error {
+	client, err := ws.UpgradeRequest(wreq)
 	if err != nil {
 		return err
 	}
-
-	room.JoinConn(conn, wreq)
+	channel.JoinClient(client)
 	return nil
 }

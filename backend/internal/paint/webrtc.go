@@ -1,4 +1,4 @@
-package webrtc
+package paint
 
 import (
 	"context"
@@ -14,22 +14,7 @@ type SignalPayload struct {
 	Data       json.RawMessage `json:"data"`
 }
 
-type WebRTCManager struct {
-	room *wardsocket.Room
-}
-
-func New(room *wardsocket.Room) *WebRTCManager {
-	return &WebRTCManager{
-		room: room,
-	}
-}
-
-func (m *WebRTCManager) RegisterHandlers() {
-	m.room.Log("init")
-	m.room.RegisterEventHandler("webrtc_signal", m.handleSignal)
-}
-
-func (m *WebRTCManager) handleSignal(ctx context.Context, e *wardsocket.Event) {
+func (p *PaintRoom) handleSignal(ctx context.Context, e *wardsocket.Event) {
 
 	var payload SignalPayload
 	if err := json.Unmarshal(e.Payload, &payload); err != nil {
@@ -46,6 +31,6 @@ func (m *WebRTCManager) handleSignal(ctx context.Context, e *wardsocket.Event) {
 	}
 
 	outgoingEvent := []byte(`{"type":"webrtc_signal","payload":` + string(outgoingPayloadBytes) + `}`)
-	m.room.Log("webrtc", payload)
-	m.room.Broadcast(outgoingEvent)
+	p.Channel.Log("webrtc", payload)
+	p.Channel.Broadcast(outgoingEvent)
 }

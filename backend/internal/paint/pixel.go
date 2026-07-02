@@ -1,4 +1,4 @@
-package paintroom
+package paint
 
 import (
 	"encoding/binary"
@@ -15,25 +15,7 @@ type PixelFrame struct {
 	A uint8
 }
 
-// func (p *Paint) setPixelFramesToBuffers(data []byte) {
-// 	p.mu.Lock()
-// 	defer p.mu.Unlock()
-
-// 	for i := 0; i < len(data); i += 8 {
-// 		x := int(binary.LittleEndian.Uint16(data[i : i+2]))
-// 		y := int(binary.LittleEndian.Uint16(data[i+2 : i+4]))
-
-// 		p.Canvas.SetRGBA(x, y, color.RGBA{
-// 			R: data[i+4],
-// 			G: data[i+5],
-// 			B: data[i+6],
-// 			A: data[i+7],
-// 		})
-// 	}
-// 	p.pixelFrameBuf = append(p.pixelFrameBuf, data...)
-// }
-
-func (p *Paint) saveCanvasBytes() {
+func (p *PaintRoom) saveCanvasBytes() {
 	data := p.saveBuf
 	for i := 0; i < len(data); i += 8 {
 		x := int(binary.LittleEndian.Uint16(data[i : i+2]))
@@ -82,7 +64,7 @@ func (p *Paint) saveCanvasBytes() {
 	p.saveBuf = p.saveBuf[:0]
 }
 
-func (p *Paint) getCanvasBytes() []byte {
+func (p *PaintRoom) getCanvasBytes() []byte {
 
 	bounds := p.Canvas.Bounds()
 

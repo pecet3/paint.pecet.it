@@ -1,4 +1,4 @@
-package usermanager
+package paint
 
 import (
 	"encoding/json"
@@ -7,7 +7,7 @@ import (
 	"paint.pecet.it/pkg/ward/wardsocket"
 )
 
-func (m *Manager) broadcastEvent(eventType string, payload any) {
+func (p *PaintRoom) broadcastEvent(eventType string, payload any) {
 	data, err := json.Marshal(payload)
 	if err != nil {
 		return
@@ -21,19 +21,19 @@ func (m *Manager) broadcastEvent(eventType string, payload any) {
 	if err != nil {
 		return
 	}
-	m.room.Log(eventType, payload)
-	m.room.Broadcast(evtData)
+	p.Channel.Log(eventType, payload)
+	p.Channel.Broadcast(evtData)
 }
 
-func (m *Manager) BroadcastServerMessage(msg string) {
+func (p *PaintRoom) BroadcastServerMessage(msg string) {
 	serverMsg := ServerMessage{
 		Message: msg,
 		Date:    time.Now(),
 	}
-	m.broadcastEvent("server_message", serverMsg)
+	p.broadcastEvent("server_message", serverMsg)
 }
-func (m *Manager) SendChatHistory(client *wardsocket.Client) {
-	for _, msg := range m.chatHistory {
+func (p *PaintRoom) SendChatHistory(client *wardsocket.Client) {
+	for _, msg := range p.chatHistory {
 		data, err := json.Marshal(msg)
 		if err != nil {
 			continue
@@ -49,9 +49,9 @@ func (m *Manager) SendChatHistory(client *wardsocket.Client) {
 		client.Send(evtData)
 	}
 }
-func (m *Manager) BroadcastUserList() {
+func (p *PaintRoom) BroadcastUserList() {
 	var list []map[string]any
-	for _, u := range m.users {
+	for _, u := range p.users {
 		list = append(list, map[string]any{
 			"uuid":                 u.WardUser.Uuid(),
 			"name":                 u.WardUser.Name(),
@@ -60,5 +60,5 @@ func (m *Manager) BroadcastUserList() {
 			"ban_duration_seconds": int64(u.BanDuration.Seconds()),
 		})
 	}
-	m.broadcastEvent("update_users_list", list)
+	p.broadcastEvent("update_users_list", list)
 }

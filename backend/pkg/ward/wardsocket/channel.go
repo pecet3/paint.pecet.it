@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"log"
 	"sync"
-
-	"github.com/gorilla/websocket"
-	"paint.pecet.it/pkg/ward"
 )
 
 type Event struct {
@@ -17,7 +14,7 @@ type Event struct {
 	Client  *Client
 }
 
-type Room struct {
+type Channel struct {
 	Ident string
 
 	clients map[*Client]bool
@@ -37,8 +34,8 @@ type Room struct {
 	closeCh chan struct{}
 }
 
-func NewRoom(ident string) *Room {
-	r := &Room{
+func NewChannel(ident string) *Channel {
+	r := &Channel{
 		Ident:       ident,
 		clients:     make(map[*Client]bool),
 		broadcastCh: make(chan json.RawMessage),
@@ -55,22 +52,21 @@ func NewRoom(ident string) *Room {
 	return r
 }
 
-func (r *Room) WithCancelContext(ctx context.Context) (*Room, context.Context) {
+func (r *Channel) WithCancelContext(ctx context.Context) (*Channel, context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	r.cancel = cancel
 	return r, ctx
 }
 
-func (r *Room) Broadcast(msg json.RawMessage) {
+func (r *Channel) Broadcast(msg json.RawMessage) {
 	r.broadcastCh <- msg
 }
 
-func (r *Room) LeaveClient(client *Client) {
+func (r *Channel) LeaveClient(client *Client) {
 	r.leaveCh <- client
 }
 
-func (r *Room) JoinConn(conn *websocket.Conn, wreq *ward.Request) {
-	client := NewClient(r, conn, wreq)
+func (r *Channel) JoinClient(client *Client) {
 
 	r.joinCh <- client
 
@@ -78,32 +74,32 @@ func (r *Room) JoinConn(conn *websocket.Conn, wreq *ward.Request) {
 	go client.readPump(r)
 }
 
-func (r *Room) RegisterEventHandler(eventType string, handler func(context.Context, *Event)) {
+func (r *Channel) RegisterEventHandler(eventType string, handler func(context.Context, *Event)) {
 	r.eventHandlers[eventType] = handler
 }
 
-func (r *Room) RegisterJoinHandler(handler func(context.Context, *Client)) {
+func (r *Channel) RegisterJoinHandler(handler func(context.Context, *Client)) {
 	r.joinHandlers = append(r.joinHandlers, handler)
 }
 
-func (r *Room) RegisterLeaveHandler(handler func(context.Context, *Client)) {
+func (r *Channel) RegisterLeaveHandler(handler func(context.Context, *Client)) {
 	r.leaveHandlers = append(r.leaveHandlers, handler)
 }
 
-func (r *Room) Close() {
-	<-r.closeCh
+func (r *Channel) Close() {
+	r.closeCh <- struct{}{}
 }
 
-func (r *Room) LogInfo() string {
-	return fmt.Sprintf("room: %s", r.Ident)
+func (r *Channel) LogInfo() string {
+	return fmt.Sprintf("Channel: %s", r.Ident)
 }
 
-func (r *Room) Log(v ...any) {
+func (r *Channel) Log(v ...any) {
 	args := append([]any{r.LogInfo()}, v...)
 	log.Println(args...)
 }
 
-func (r *Room) Run(ctx context.Context) {
+func (r *Channel) Run(ctx context.Context) {
 	go func() {
 		r.Log("is listening")
 		for {
@@ -143,9 +139,9 @@ func (r *Room) Run(ctx context.Context) {
 					r.Log("Unhandled event type: %s", msg.Type)
 				}
 			case <-ctx.Done():
-				log.Println("closing room done")
+				log.Println("closing Channel done")
 			case <-r.closeCh:
-				r.Log("closing room")
+				r.Log("closing Channel")
 				for client := range r.clients {
 					close(client.sendCh)
 					delete(r.clients, client)

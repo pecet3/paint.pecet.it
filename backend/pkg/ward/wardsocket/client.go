@@ -18,10 +18,10 @@ func (c *Client) Send(msg json.RawMessage) {
 	c.sendCh <- msg
 }
 
-func NewClient(r *Room, conn *websocket.Conn, wreq *ward.Request) *Client {
+func NewClient(conn *websocket.Conn, wreq *ward.Request) *Client {
 	return &Client{conn: conn, sendCh: make(chan json.RawMessage), Request: wreq}
 }
-func (c *Client) readPump(r *Room) {
+func (c *Client) readPump(r *Channel) {
 	defer func() {
 		r.leaveCh <- c
 		c.conn.Close()
@@ -44,7 +44,7 @@ func (c *Client) readPump(r *Room) {
 	}
 }
 
-func (c *Client) writePump(r *Room) {
+func (c *Client) writePump(r *Channel) {
 	defer func() {
 		r.leaveCh <- c
 		c.conn.Close()

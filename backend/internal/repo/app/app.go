@@ -21,7 +21,7 @@ func New() *App {
 
 	w := ward.New()
 	app.Ward = w
-	ws := wardsocket.New(w, &wardsocket.Upgrader{
+	ws := wardsocket.New(&wardsocket.Upgrader{
 		ReadBufferSize:  bufSize,
 		WriteBufferSize: bufSize,
 		CheckOrigin: func(r *http.Request) bool {

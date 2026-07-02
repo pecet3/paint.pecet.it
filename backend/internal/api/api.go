@@ -10,20 +10,16 @@ import (
 	"paint.pecet.it/internal/repo/env"
 	"paint.pecet.it/internal/simpleauth"
 	"paint.pecet.it/pkg/ward"
-	"paint.pecet.it/pkg/ward/wardsocket"
 )
 
 type Api struct {
-	ward       *ward.Ward
-	wardsocket *wardsocket.WardSocket
-	auth       *simpleauth.SimpleAuth
+	ward *ward.Ward
+	auth *simpleauth.SimpleAuth
 }
-
-const bufSize = 1024 * 64 * 4
 
 func New(app *app.App) *Api {
 
-	return &Api{ward: app.Ward, wardsocket: app.Wardsocket, auth: app.Auth}
+	return &Api{ward: app.Ward, auth: app.Auth}
 }
 
 func (api *Api) Run() {
