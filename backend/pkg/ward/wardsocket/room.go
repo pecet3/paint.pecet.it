@@ -11,6 +11,12 @@ import (
 	"paint.pecet.it/pkg/ward"
 )
 
+type Event struct {
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload"`
+	Client  *Client
+}
+
 type Room struct {
 	Ident string
 
@@ -70,12 +76,6 @@ func (r *Room) JoinConn(conn *websocket.Conn, wreq *ward.Request) {
 
 	go client.writePump(r)
 	go client.readPump(r)
-}
-
-type Event struct {
-	Type    string          `json:"type"`
-	Payload json.RawMessage `json:"payload"`
-	Client  *Client
 }
 
 func (r *Room) RegisterEventHandler(eventType string, handler func(context.Context, *Event)) {

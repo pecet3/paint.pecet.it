@@ -1,4 +1,7 @@
-
+export interface User {
+    uuid: string;
+    name: string;
+}
 export type Event = {
     type: string;
     payload: any;

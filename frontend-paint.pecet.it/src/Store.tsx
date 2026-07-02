@@ -1,9 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-
-interface User {
-    uuid: string;
-    name: string;
-}
+import type { User } from './types';
 
 interface StoreContextType {
     user: User | null;

@@ -7,20 +7,23 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+
+	"paint.pecet.it/internal/repo/env"
 	"paint.pecet.it/pkg/ward"
 )
 
 type User struct {
-	uuid string
-	name string
+	Uuid_   string `json:"uuid"`
+	Name_   string `json:"name"`
+	IsAdmin bool   `json:"is_admin"`
 }
 
 func (u *User) Uuid() string {
-	return u.uuid
+	return u.Uuid_
 }
 
 func (u *User) Name() string {
-	return u.name
+	return u.Name_
 }
 
 type SimpleAuth struct {
@@ -35,7 +38,8 @@ func New() *SimpleAuth {
 }
 
 type LoginRequest struct {
-	Name string `json:"name"`
+	Name     string `json:"name"`
+	Password string `json:"password,omitempty"`
 }
 
 func (sa *SimpleAuth) LoginHandler(wreq *ward.Request) {
@@ -55,10 +59,14 @@ func (sa *SimpleAuth) LoginHandler(wreq *ward.Request) {
 		http.Error(wreq.ResponseWriter, "Name is required", http.StatusBadRequest)
 		return
 	}
-
+	isAdmin := false
+	if reqBody.Password == env.Var.AdminPassword {
+		isAdmin = true
+	}
 	user := &User{
-		uuid: uuid.NewString(),
-		name: reqBody.Name,
+		Uuid_:   uuid.NewString(),
+		Name_:   reqBody.Name,
+		IsAdmin: isAdmin,
 	}
 
 	authToken := uuid.NewString()
@@ -123,6 +131,32 @@ func (sa *SimpleAuth) AuthMiddleware(next ward.Handler) ward.Handler {
 			return
 		}
 
+		wreq.AssignUser(user)
+
+		next(wreq)
+	}
+}
+
+func (sa *SimpleAuth) AuthAdminMiddleware(next ward.Handler) ward.Handler {
+	return func(wreq *ward.Request) {
+		cookie, err := wreq.Http.Cookie("auth-token")
+		if err != nil {
+			http.Error(wreq, "", http.StatusUnauthorized)
+			return
+		}
+
+		sa.mu.RLock()
+		user, exists := sa.users[cookie.Value]
+		sa.mu.RUnlock()
+
+		if !exists {
+			http.Error(wreq, "", http.StatusUnauthorized)
+			return
+		}
+		if !user.IsAdmin {
+			http.Error(wreq, "", http.StatusForbidden)
+			return
+		}
 		wreq.AssignUser(user)
 
 		next(wreq)

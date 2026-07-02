@@ -3,7 +3,7 @@ import react, { reactCompilerPreset } from '@vitejs/plugin-react'
 import babel from '@rolldown/plugin-babel'
 import tailwindcss from '@tailwindcss/vite'
 
-const target = 'http://localhost:8080/api'
+const target = 'http://localhost:8080'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
@@ -14,24 +14,16 @@ export default defineConfig({
   base: "/",
   server: {
     proxy: {
-      '/ws': {
+      '/api/ws': {
         target,
         ws: true,
         changeOrigin: true,
       },
-      '/login': {
+      '/api/login': {
         target,
         changeOrigin: true,
       },
-      '/hello': {
-        target,
-        changeOrigin: true,
-      },
-      '/test': {
-        target,
-        changeOrigin: true,
-      },
-      '/ping':
+      '/api/ping':
       {
         target,
         changeOrigin: true

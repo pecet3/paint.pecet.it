@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useStore } from '../Store';
 
-export const LoginForm: React.FC = () => {
+export const LoginForm: React.FC<{ isPassword?: boolean }> = ({ isPassword }) => {
     const [name, setName] = useState<string>('');
+    const [password, setPassword] = useState<string>('');
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -29,7 +30,7 @@ export const LoginForm: React.FC = () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ name: name.trim() }),
+                body: JSON.stringify({ name: name.trim(), password: password.trim() }),
                 credentials: 'include',
             });
 
@@ -41,6 +42,7 @@ export const LoginForm: React.FC = () => {
 
             setMessage(data); // "Logged successful"
             setName('');
+            setPassword('');
             await checkAuth();
 
             navigate('/');
@@ -55,20 +57,33 @@ export const LoginForm: React.FC = () => {
         }
     };
     return (
-        <div className="max-w-[320px]font-sans">
+        <div className="max-w-[320px] font-sans">
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-                <div>
-
+                <div className="flex flex-col gap-2">
                     <input
                         id="name"
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         disabled={isLoading}
-                        className="w-full p-2 border border-gray-300 rounded box-border focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
-                        placeholder="Enter your name"
+                        className="w-full p-2 border border-gray-300 rounded box-border
+                         focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                        placeholder="Name"
                     />
+                    {isPassword && (
+                        <input
+                            id="password"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            disabled={isLoading}
+                            className="w-full p-2 border border-gray-300 rounded
+                             box-border focus:outline-none focus:ring-2 focus:ring-blue-500
+                              disabled:bg-gray-100 disabled:text-gray-400"
+                            placeholder="Password"
+                        />
+                    )}
                 </div>
 
                 <button
@@ -96,9 +111,23 @@ export const LoginForm: React.FC = () => {
 };
 
 export const Login = () => {
+    const [isPassword, setIsPassword] = useState<boolean>(false);
+    return (
+        <>
+            <div className='bg-gray-200 p-4 rounded-lg m-auto'>
+                {isPassword ? <LoginForm isPassword={true} /> : <LoginForm />}
+
+            </div>
+            <button onClick={() => setIsPassword(!isPassword)} className="">
+                {isPassword ? 'Normal Login' : 'Admin Login'}
+            </button>
+        </>
+    )
+}
+export const LoginAdmin = () => {
     return (
         <div className='bg-gray-200 p-4 rounded-lg m-auto'>
-            <LoginForm />
+            <LoginForm isPassword={true} />
         </div>
     )
 }
