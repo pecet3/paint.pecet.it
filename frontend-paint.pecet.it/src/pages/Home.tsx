@@ -17,7 +17,7 @@ export const Home: React.FC = () => {
 
   const [serverMessage, setServerMessage] = useState<ServerMessage | null>(null)
   useEffect(() => {
-    ws.current = new WebSocket("/ws");
+    ws.current = new WebSocket("/api/ws");
 
     ws.current.onmessage = (message: MessageEvent) => {
       const data = JSON.parse(message.data);
@@ -85,14 +85,14 @@ export const Home: React.FC = () => {
   };
   return (
     <div >
-      <div className="flex">
+      <div className="flex m-auto items-center justify-center w-full">
         <PaintCanvas
           onSendPixelUpdate={handleSendPixelUpdate}
           incomingPixels={incomingPixels}
         />
 
       </div>
-      <div className="flex text-2xl">
+      <div className="flex text-3xl bg-gray-200/50 justify-center ">
         {serverMessage?.message}
       </div>
       <div className="w-full flex">

@@ -3,6 +3,8 @@ package api
 import (
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"paint.pecet.it/internal/simpleauth"
 	"paint.pecet.it/pkg/ward"
@@ -24,28 +26,36 @@ func New() *Api {
 const bufSize = 1024 * 64 * 4
 
 func (api *Api) Run() {
-	w := ward.New("/api")
-	wardsocket := wardsocket.New(w, &wardsocket.Upgrader{
+	w := ward.New()
+	api.wardsocket = wardsocket.New(w, &wardsocket.Upgrader{
 		ReadBufferSize:  bufSize,
 		WriteBufferSize: bufSize,
 		CheckOrigin: func(r *http.Request) bool {
 			return true
 		},
 	})
-
-	api.wardsocket = wardsocket
 	auth := simpleauth.New()
 
-	public := w.NewGroup("")
+	public := w.NewGroup("/api")
 	public.Post("/login", auth.LoginHandler)
 	public.Get("/hello", api.handleHelloWorld)
 
-	protected := w.NewGroup("")
-	protected.Use(auth.AuthMiddleware)
-
+	protected := w.NewGroup("/api").With(auth.AuthMiddleware)
 	protected.Get("/ws", api.handlePaintWS)
 	protected.Get("/ping", auth.PingHandler)
 
+	w.Get("/", func(wreq *ward.Request) {
+		distPath := "./dist"
+		path := filepath.Join(distPath, wreq.Http.URL.Path)
+		info, err := os.Stat(path)
+
+		if os.IsNotExist(err) || info.IsDir() {
+			http.ServeFile(wreq.ResponseWriter, wreq.Http, filepath.Join(distPath, "index.html"))
+			return
+		}
+
+		http.ServeFile(wreq.ResponseWriter, wreq.Http, path)
+	})
 	log.Println("Listening on port", port)
 	log.Fatal(http.ListenAndServe(port, w))
 }

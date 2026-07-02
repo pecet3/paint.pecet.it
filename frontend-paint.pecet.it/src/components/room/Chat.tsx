@@ -12,7 +12,7 @@ export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage }) =>
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        // messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
 
     const handleSubmit = (e: React.FormEvent) => {

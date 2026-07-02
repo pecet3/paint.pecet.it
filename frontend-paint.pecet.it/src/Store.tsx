@@ -27,7 +27,7 @@ export const StoreProvider: React.FC<StoreProviderProps> = ({ children }) => {
     const checkAuth = async () => {
         try {
             setLoading(true);
-            const response = await fetch('/ping', { credentials: 'include' });
+            const response = await fetch('/api/ping', { credentials: 'include' });
 
             if (response.ok) {
                 const data: User = await response.json();

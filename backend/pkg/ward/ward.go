@@ -25,13 +25,23 @@ func (g *Group) Use(mws ...Middleware) {
 	g.middlewares = append(g.middlewares, mws...)
 }
 
+func (g *Group) With(mws ...Middleware) *Group {
+	g.middlewares = append(g.middlewares, mws...)
+	return g
+}
+
 func (g *Group) combineMiddleware(mws []Middleware) []Middleware {
 	combined := make([]Middleware, 0, len(g.middlewares)+len(mws))
 	combined = append(combined, g.middlewares...)
 	combined = append(combined, mws...)
 	return combined
 }
-
+func (g *Group) NewGroup(basePath string) *Group {
+	return &Group{
+		ward: g.ward,
+		path: g.path + basePath,
+	}
+}
 func (g *Group) Get(pattern string, handler func(wreq *Request), mws ...Middleware) {
 	g.ward.Get(g.path+pattern, handler, g.combineMiddleware(mws)...)
 }
@@ -48,18 +58,17 @@ func (g *Group) Delete(pattern string, handler func(wreq *Request), mws ...Middl
 	g.ward.Delete(g.path+pattern, handler, g.combineMiddleware(mws)...)
 }
 
-func New(basePath string) *Ward {
+func New() *Ward {
 	return &Ward{
 		mux:         http.NewServeMux(),
 		httpClients: make(map[string]*ClientInfo),
-		basePath:    basePath,
 	}
 }
 
-func (w *Ward) NewGroup(path string) *Group {
+func (w *Ward) NewGroup(basePath string) *Group {
 	return &Group{
 		ward: w,
-		path: w.basePath + path,
+		path: w.basePath + basePath,
 	}
 }
 
