@@ -90,7 +90,7 @@ export const Room: React.FC = () => {
   };
   return (
     <div className="m-2 flex flex-col items-center">
-      <div className="flex gap-4 items-center justify-between w-full">
+      <div className="flex gap-1 items-center justify-between w-full flex-col lg:flex-row">
         <PaintCanvas
           onSendPixelUpdate={handleSendPixelUpdate}
           incomingPixels={incomingPixels}

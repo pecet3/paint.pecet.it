@@ -81,9 +81,10 @@ func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
 			user.IsOperator = true
 		}
 	}
-	p.uMu.Unlock()
+
 	p.SendChatHistory(c)
 	p.BroadcastUserList()
+	p.uMu.Unlock()
 	p.BroadcastServerMessage(c.Request.User.Name() + " joined")
 
 }

@@ -124,6 +124,7 @@ func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 			case <-syncTicker.C:
 				go func() {
 					p.uMu.RLock()
+					defer p.uMu.RUnlock()
 					for _, u := range p.users {
 						log.Println(u.WardUser.Name(), u.IsConnected)
 						if u.IsConnected {
@@ -133,7 +134,7 @@ func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 					if time.Now().Before(p.lastLeftAt.Add(2 * time.Second)) {
 						return
 					}
-					p.uMu.RUnlock()
+
 					p.Channel.Close()
 				}()
 			case <-ctx.Done():
