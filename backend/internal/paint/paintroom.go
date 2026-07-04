@@ -38,6 +38,7 @@ type PaintRoom struct {
 	uMu         sync.RWMutex
 	users       map[string]*User
 	chatHistory []ChatMessage
+	lastLeftAt  time.Time
 }
 
 func newPaintRoom(cfg *RoomConfig, channel *wardsocket.Channel) *PaintRoom {
@@ -80,15 +81,17 @@ func (p *PaintRoom) Info() PaintRoomInfo {
 	}
 }
 
-func (p *PaintRoom) Run(ctx context.Context) {
+func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 	go func() {
 		streamTicker := time.NewTicker(30 * time.Millisecond)
 		saveTicker := time.NewTicker(2000 * time.Millisecond)
-		syncTicker := time.NewTicker(1000 * 60 * 5 * time.Millisecond)
+		syncTicker := time.NewTicker(1000 * 10 * time.Millisecond)
 		defer func() {
 			streamTicker.Stop()
 			saveTicker.Stop()
 			syncTicker.Stop()
+
+			pm.DeleteRoom(p.cfg.Name)
 		}()
 		for {
 			select {
@@ -111,42 +114,54 @@ func (p *PaintRoom) Run(ctx context.Context) {
 				}()
 			case <-saveTicker.C:
 				go func() {
-					p.Channel.Log("paint save ticker")
+					p.cMu.Lock()
+					defer p.cMu.Unlock()
 					if len(p.saveBuf) == 0 {
 						return
 					}
-					start := time.Now()
-					p.cMu.Lock()
 					p.saveCanvasBytes()
-					p.cMu.Unlock()
-					log.Println(time.Since(start))
 				}()
 			case <-syncTicker.C:
 				go func() {
-					// p.Channel.Log("paint sync ticker")
-
-					// start := time.Now()
-
-					// p.cMu.Lock()
-					// payload := p.getCanvasBytes()
-					// event := wardsocket.ByteEvent{
-					// 	Type:    "canvas_pixel_update",
-					// 	Payload: payload,
-					// }
-
-					// data, err := json.Marshal(event)
-					// if err == nil {
-					// 	p.Channel.Broadcast(data)
-					// }
-					// p.cMu.Unlock()
-
-					// log.Println(time.Since(start))
-
+					p.uMu.RLock()
+					for _, u := range p.users {
+						log.Println(u.WardUser.Name(), u.IsConnected)
+						if u.IsConnected {
+							return
+						}
+					}
+					if time.Now().Before(p.lastLeftAt.Add(2 * time.Second)) {
+						return
+					}
+					p.uMu.RUnlock()
+					p.Channel.Close()
 				}()
 			case <-ctx.Done():
+				log.Println("context done")
 				return
 			}
 
 		}
 	}()
+}
+
+func (p *PaintRoom) sync() {
+	p.Channel.Log("paint sync ticker")
+
+	start := time.Now()
+
+	p.cMu.Lock()
+	payload := p.getCanvasBytes()
+	event := wardsocket.ByteEvent{
+		Type:    "canvas_pixel_update",
+		Payload: payload,
+	}
+
+	data, err := json.Marshal(event)
+	if err == nil {
+		p.Channel.Broadcast(data)
+	}
+	p.cMu.Unlock()
+
+	log.Println(time.Since(start))
 }

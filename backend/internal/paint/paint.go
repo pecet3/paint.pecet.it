@@ -39,23 +39,23 @@ func (p *Paint) CreateRoom(cfg *RoomConfig) {
 	channel, ctx := wardsocket.NewChannel(cfg.Name).WithCancelContext(ctx)
 	room := newPaintRoom(cfg, channel)
 	room.RegisterHandlers()
-	room.Run(ctx)
+	room.Run(p, ctx)
 	channel.Run(ctx)
 	p.mu.Lock()
 	p.rooms[cfg.Name] = room
 	p.mu.Unlock()
+
 }
 
 func (p *Paint) DeleteRoom(roomIdent string) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	room, exists := p.rooms[roomIdent]
-	if !exists {
-		return
+	_, exists := p.rooms[roomIdent]
+	if exists {
+		delete(p.rooms, roomIdent)
 	}
-	room.Channel.Close()
-	delete(p.rooms, roomIdent)
+
 }
 
 func (p *Paint) ListRooms() []PaintRoomInfo {

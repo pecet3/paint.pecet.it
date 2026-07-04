@@ -90,8 +90,6 @@ func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
 
 func (p *PaintRoom) handleLeave(ctx context.Context, client *wardsocket.Client) {
 	p.uMu.Lock()
-	defer p.uMu.Unlock()
-
 	uuid := client.Request.User.Uuid()
 	if user, exists := p.users[uuid]; exists {
 		user.IsConnected = false
@@ -110,6 +108,8 @@ func (p *PaintRoom) handleLeave(ctx context.Context, client *wardsocket.Client) 
 			}
 		}
 	}
+	p.lastLeftAt = time.Now()
+	p.uMu.Unlock()
 
 	p.BroadcastServerMessage(client.Request.User.Name() + " left")
 

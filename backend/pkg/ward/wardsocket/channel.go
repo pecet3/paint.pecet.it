@@ -132,8 +132,6 @@ func (r *Channel) Run(ctx context.Context) {
 				} else {
 					r.Log("Unhandled event type: %s", msg.Type)
 				}
-			case <-ctx.Done():
-				log.Println("closing Channel done")
 			case <-r.closeCh:
 				r.Log("closing Channel")
 				for client := range r.clients {
@@ -145,7 +143,7 @@ func (r *Channel) Run(ctx context.Context) {
 					r.Log("executing context cancel func")
 					r.cancel()
 				}
-
+				return
 			}
 		}
 	}()
