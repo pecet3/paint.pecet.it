@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 export type RoomConfig = {
   name: string;
@@ -15,6 +15,8 @@ export type RoomInfo = {
 };
 
 export const Home: React.FC = () => {
+  let navigate = useNavigate();
+
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [formData, setFormData] = useState<RoomConfig>({
@@ -62,6 +64,7 @@ export const Home: React.FC = () => {
         setIsFormVisible(false);
         setFormData({ name: '', password: '', is_temporary: false });
         fetchRooms();
+        navigate(`/rooms/${formData.name}`)
       }
     } catch (error) {
       console.error(error);
@@ -95,85 +98,83 @@ export const Home: React.FC = () => {
   );
 
   return (
-    <div className="max-w-3xl mx-auto mt-12 mb-20 px-6 font-sans">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Rooms</h1>
+    <div className="tile w-full max-w-md">
+      <div className="flex justify-between items-center mb-8 gap-4">
+        < h1 className="text-3xl font-extrabold text-gray-900 tracking-tight" > Rooms</h1 >
         <button
           onClick={() => setIsFormVisible(!isFormVisible)}
-          className={`px-5 py-2.5 text-sm font-semibold text-white rounded-lg transition-colors shadow-sm ${isFormVisible
-            ? 'bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300'
-            : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300'
-            }`}
+          className={`btn bg-slate-900`}
         >
           {isFormVisible ? 'Back to List' : 'Create Room'}
         </button>
-      </div>
+      </div >
 
-      {isFormVisible ? (
-        <form onSubmit={handleCreateRoom} className="bg-white p-8 border border-gray-200 rounded-2xl shadow-sm flex flex-col gap-6">
-          <div>
-            <label className="block mb-2 text-sm font-bold text-gray-700">Room Name</label>
-            <input
-              type="text"
-              name="name"
-              value={formData.name}
-              onChange={handleInputChange}
-              required
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              placeholder="Enter room name..."
-            />
+      {
+        isFormVisible ? (
+          <form onSubmit={handleCreateRoom} className="flex flex-col m-auto w-full gap-2" >
+            <div>
+              <label className="">Room Name</label>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+                className="inpt w-full"
+                placeholder="Enter room name..."
+              />
+            </div>
+
+            <div>
+              <label className="">Password <span className="">(Optional)</span></label>
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleInputChange}
+                className="inpt w-full"
+                placeholder="Leave blank for public room"
+              />
+            </div>
+
+            <label className="">
+              <input
+                type="checkbox"
+                name="is_temporary"
+                checked={formData.is_temporary}
+                onChange={handleInputChange}
+                className=""
+              />
+              <span className="text-sm font-semibold ">Temporary Room</span>
+            </label>
+
+            <button
+              type="submit"
+              className="btn bg-black"
+            >
+              Create
+            </button>
+          </form>
+        ) : (
+          <div className="flex flex-col gap-8">
+            <div>
+              {permanentRooms.length > 0 ? (
+                permanentRooms.map((room) => <RoomCard key={room.name} room={room} />)
+              ) : (
+                <p>No rooms available.</p>
+              )}
+            </div>
+
+            <div>
+              <h2 className="text-xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">Temporary Rooms</h2>
+              {temporaryRooms.length > 0 ? (
+                temporaryRooms.map((room) => <RoomCard key={room.name} room={room} />)
+              ) : (
+                <p>No rooms available.</p>
+              )}
+            </div>
           </div>
-
-          <div>
-            <label className="block mb-2 text-sm font-bold text-gray-700">Password <span className="text-gray-400 font-normal">(Optional)</span></label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              placeholder="Leave blank for public room"
-            />
-          </div>
-
-          <label className="flex items-center gap-3 cursor-pointer p-4 border border-gray-100 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-            <input
-              type="checkbox"
-              name="is_temporary"
-              checked={formData.is_temporary}
-              onChange={handleInputChange}
-              className="w-5 h-5 text-indigo-600 bg-white border-gray-300 rounded focus:ring-indigo-500 focus:ring-2"
-            />
-            <span className="text-sm font-semibold text-gray-700">Make this a Temporary Room</span>
-          </label>
-
-          <button
-            type="submit"
-            className="mt-2 w-full px-5 py-3.5 text-base font-bold text-white bg-emerald-500 rounded-xl hover:bg-emerald-600 focus:ring-4 focus:outline-none focus:ring-emerald-300 transition-colors shadow-sm"
-          >
-            Create New Room
-          </button>
-        </form>
-      ) : (
-        <div className="flex flex-col gap-8">
-          <div>
-            {permanentRooms.length > 0 ? (
-              permanentRooms.map((room) => <RoomCard key={room.name} room={room} />)
-            ) : (
-              <p className="text-gray-500 italic bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">No permanent rooms available.</p>
-            )}
-          </div>
-
-          <div>
-            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">Temporary Rooms</h2>
-            {temporaryRooms.length > 0 ? (
-              temporaryRooms.map((room) => <RoomCard key={room.name} room={room} />)
-            ) : (
-              <p className="text-gray-500 italic bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">No temporary rooms active right now.</p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+        )}
+    </div >
   );
 };

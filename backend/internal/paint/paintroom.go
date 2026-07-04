@@ -84,7 +84,7 @@ func (p *PaintRoom) Run(ctx context.Context) {
 	go func() {
 		streamTicker := time.NewTicker(30 * time.Millisecond)
 		saveTicker := time.NewTicker(2000 * time.Millisecond)
-		syncTicker := time.NewTicker(10000 * time.Millisecond)
+		syncTicker := time.NewTicker(1000 * 60 * 5 * time.Millisecond)
 		defer func() {
 			streamTicker.Stop()
 			saveTicker.Stop()
@@ -96,7 +96,7 @@ func (p *PaintRoom) Run(ctx context.Context) {
 				go func() {
 					p.cMu.Lock()
 					if len(p.streamBuf) > 0 {
-						event := wardsocket.Event{
+						event := wardsocket.ByteEvent{
 							Type:    "canvas_pixel_update",
 							Payload: p.streamBuf,
 						}
@@ -123,24 +123,24 @@ func (p *PaintRoom) Run(ctx context.Context) {
 				}()
 			case <-syncTicker.C:
 				go func() {
-					p.Channel.Log("paint sync ticker")
+					// p.Channel.Log("paint sync ticker")
 
-					start := time.Now()
+					// start := time.Now()
 
-					p.cMu.Lock()
-					payload := p.getCanvasBytes()
-					event := wardsocket.Event{
-						Type:    "canvas_pixel_update",
-						Payload: payload,
-					}
+					// p.cMu.Lock()
+					// payload := p.getCanvasBytes()
+					// event := wardsocket.ByteEvent{
+					// 	Type:    "canvas_pixel_update",
+					// 	Payload: payload,
+					// }
 
-					data, err := json.Marshal(event)
-					if err == nil {
-						p.Channel.Broadcast(data)
-					}
-					p.cMu.Unlock()
+					// data, err := json.Marshal(event)
+					// if err == nil {
+					// 	p.Channel.Broadcast(data)
+					// }
+					// p.cMu.Unlock()
 
-					log.Println(time.Since(start))
+					// log.Println(time.Since(start))
 
 				}()
 			case <-ctx.Done():

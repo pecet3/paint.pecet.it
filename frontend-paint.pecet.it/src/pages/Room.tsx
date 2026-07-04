@@ -21,16 +21,13 @@ export const Room: React.FC = () => {
 
   const [serverMessage, setServerMessage] = useState<ServerMessage | null>(null)
   useEffect(() => {
-    console.log(roomName)
-    if (roomName === undefined || roomName === "") {
-      return
-    }
     ws.current = new WebSocket("/api/rooms/" + roomName);
 
     ws.current.onmessage = (message: MessageEvent) => {
       const data = JSON.parse(message.data);
       switch (data.type) {
         case "canvas_pixel_update":
+          console.log(data.type)
           setIncomingPixels(decodeBase64ToPixels(data.payload));
           break;
         case "chat_message":
@@ -92,19 +89,21 @@ export const Room: React.FC = () => {
     }
   };
   return (
-    <div >
-      <div className="flex m-auto items-center justify-center w-full">
+    <div className="m-2 flex flex-col items-center">
+      <div className="flex gap-4 items-center justify-between w-full">
         <PaintCanvas
           onSendPixelUpdate={handleSendPixelUpdate}
           incomingPixels={incomingPixels}
         />
+        <div className="flex flex-col items-center m-0 w-full justify-center">
+          <div className="flex text-xl justify-center ">
+            {serverMessage?.message}
+          </div>
+          <Chat users={users} messages={chatMessages} onSendMessage={handleSendChatMessage} />
+        </div>
+      </div>
 
-      </div>
-      <div className="flex text-3xl bg-gray-200/50 justify-center ">
-        {serverMessage?.message}
-      </div>
       <div className="w-full flex">
-        <Chat users={users} messages={chatMessages} onSendMessage={handleSendChatMessage} />
 
         <WebRTCManager
           users={users}

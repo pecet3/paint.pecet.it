@@ -8,12 +8,6 @@ import (
 	"sync"
 )
 
-type Event struct {
-	Type    string          `json:"type"`
-	Payload json.RawMessage `json:"payload"`
-	Client  *Client
-}
-
 type Channel struct {
 	Ident string
 

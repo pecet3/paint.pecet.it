@@ -19,7 +19,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     const [fontSize, setFontSize] = useState<number>(24);
 
     const [color, setColor] = useState<string>('#000000');
-    const [brushSize, setBrushSize] = useState<number>(4);
+    const [brushSize, setBrushSize] = useState<number>(1);
     const [isDrawing, setIsDrawing] = useState<boolean>(false);
     const lastPos = useRef<{ x: number; y: number } | null>(null);
 
@@ -137,42 +137,51 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     };
 
     return (
-        <div className="flex flex-col items-center gap-4">
-            <div className="flex flex-wrap gap-4 p-2.5 bg-gray-100 rounded-lg justify-center text-sm">
-                <label className="flex items-center">
-                    Tool:
-                    <select value={tool} onChange={(e) => setTool(e.target.value as 'draw' | 'text')} className="ml-2 border rounded p-1">
-                        <option value="draw">Draw</option>
-                        <option value="text">Text</option>
-                    </select>
-                </label>
+        <div className="bg-slate-700 p-2 rounded-lg m-auto border border-black flex flex-col items-center ">
 
-                <label className="flex items-center">
-                    Color:
-                    <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="ml-2 cursor-pointer h-8 w-8 p-0 border-0" />
-                </label>
-
-                {tool === 'draw' && (
+            <div className='flex items-end justify-between w-full m-auto'>
+                <div className="flex gap-1">
                     <label className="flex items-center">
-                        Brush size: {brushSize}px
-                        <input type="range" min="1" max="10" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))} className="ml-2" />
+                        Tool:
+                        <select value={tool} onChange={(e) => setTool(e.target.value as 'draw' | 'text')}
+                            className="ml-2 border rounded ">
+                            <option value="draw" className='text-black'>Draw</option>
+                            <option value="text" className='text-black'>Text</option>
+                        </select>
                     </label>
-                )}
 
-                {tool === 'text' && (
-                    <>
+                    <label className="flex items-center">
+                        Color:
+                        <input type="color" value={color} onChange={(e) => setColor(e.target.value)}
+                            className="ml-2 cursor-pointer h-8 w-8 p-0 border-0" />
+                    </label>
+
+                    {tool === 'draw' && (
                         <label className="flex items-center">
-                            Text:
-                            <input type="text" value={textValue} onChange={(e) => setTextValue(e.target.value)} className="ml-2 border rounded p-1" />
+                            Brush size: {brushSize}px
+                            <input type="range" min="1" max="10" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))}
+                                className="" />
                         </label>
-                        <label className="flex items-center">
-                            Size: {fontSize}px
-                            <input type="range" min="5" max="20" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="ml-2" />
-                        </label>
-                    </>
-                )}
+                    )}
+
+                    {tool === 'text' && (
+                        <>
+                            <label className="flex items-center">
+                                Text:
+                                <input type="text" value={textValue} onChange={(e) => setTextValue(e.target.value)} className="ml-2 border rounded p-1" />
+                            </label>
+                            <label className="flex items-center">
+                                Size: {fontSize}px
+                                <input type="range" min="5" max="20" value={fontSize} onChange={(e) => setFontSize(Number(e.target.value))} className="ml-2" />
+                            </label>
+                        </>
+                    )}
+
+                </div>
+                <div className=" text-sm font-mono tracking-wide">
+                    X: {mouseCoords.x.toString().padStart(3, '0')} | Y: {mouseCoords.y.toString().padStart(3, '0')}
+                </div>
             </div>
-
             <div className="relative w-[800px] h-[600px]">
                 <canvas
                     ref={mainCanvasRef}
@@ -192,9 +201,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                 />
             </div>
 
-            <div className=" text-2xl font-mono tracking-wide">
-                X: {mouseCoords.x.toString().padStart(3, '0')} | Y: {mouseCoords.y.toString().padStart(3, '0')}
-            </div>
+
         </div>
     );
 };

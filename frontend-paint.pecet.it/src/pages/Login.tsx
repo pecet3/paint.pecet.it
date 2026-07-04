@@ -67,8 +67,7 @@ export const LoginForm: React.FC<{ isPassword?: boolean }> = ({ isPassword }) =>
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         disabled={isLoading}
-                        className="w-full p-2 border border-gray-300 rounded box-border
-                         focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400"
+                        className="inpt"
                         placeholder="Name"
                     />
                     {isPassword && (
@@ -78,9 +77,7 @@ export const LoginForm: React.FC<{ isPassword?: boolean }> = ({ isPassword }) =>
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             disabled={isLoading}
-                            className="w-full p-2 border border-gray-300 rounded
-                             box-border focus:outline-none focus:ring-2 focus:ring-blue-500
-                              disabled:bg-gray-100 disabled:text-gray-400"
+                            className="inpt"
                             placeholder="Password"
                         />
                     )}
@@ -89,7 +86,7 @@ export const LoginForm: React.FC<{ isPassword?: boolean }> = ({ isPassword }) =>
                 <button
                     type="submit"
                     disabled={isLoading}
-                    className="p-2.5 bg-blue-600 text-white font-medium rounded transition hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed cursor-pointer"
+                    className="btn bg-black"
                 >
                     {isLoading ? 'Logging in...' : 'Submit'}
                 </button>
@@ -114,7 +111,7 @@ export const Login = () => {
     const [isPassword, setIsPassword] = useState<boolean>(false);
     return (
         <>
-            <div className='bg-gray-200 p-4 rounded-lg m-auto'>
+            <div className='tile'>
                 {isPassword ? <LoginForm isPassword={true} /> : <LoginForm />}
 
             </div>

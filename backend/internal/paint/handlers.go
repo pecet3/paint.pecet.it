@@ -45,7 +45,7 @@ type SignalPayload struct {
 func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
 	p.cMu.Lock()
 	p.saveCanvasBytes()
-	canvasEvent := wardsocket.Event{
+	canvasEvent := wardsocket.ByteEvent{
 		Type:    "canvas_pixel_update",
 		Payload: p.getCanvasBytes(),
 	}
@@ -55,7 +55,7 @@ func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
 	}
 
 	p.uMu.Lock()
-	defer p.uMu.Unlock()
+
 	uuid := c.Request.User.Uuid()
 	user, exists := p.users[uuid]
 
@@ -81,7 +81,7 @@ func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
 			user.IsOperator = true
 		}
 	}
-
+	p.uMu.Unlock()
 	p.SendChatHistory(c)
 	p.BroadcastUserList()
 	p.BroadcastServerMessage(c.Request.User.Name() + " joined")

@@ -1,12 +1,23 @@
 package wardsocket
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"paint.pecet.it/pkg/ward"
 )
+
+type Event struct {
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload"`
+	Client  *Client
+}
+type ByteEvent struct {
+	Type    string `json:"type"`
+	Payload []byte `json:"payload"`
+}
 
 type Upgrader struct {
 	HandshakeTimeout  time.Duration

@@ -1,7 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { Home } from './pages/Home'
 import { StoreProvider, useStore } from './Store'
-import { Login, LoginAdmin } from './pages/Login';
+import { Login } from './pages/Login';
 import { Room } from './pages/Room';
 
 

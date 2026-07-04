@@ -1,7 +1,6 @@
 package ward
 
 import (
-	"log"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -23,11 +22,6 @@ type Group struct {
 }
 
 func (g *Group) Use(mws ...Middleware) *Group {
-	g.middlewares = append(g.middlewares, mws...)
-	return g
-}
-
-func (g *Group) With(mws ...Middleware) *Group {
 	g.middlewares = append(g.middlewares, mws...)
 	return g
 }
@@ -133,8 +127,6 @@ func (ward *Ward) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rWithContext := SetWardRequest(r, wreq)
-
-	log.Println(r.URL.Path, r.Method, "request id:", wreq.Id, "user uuid:", wreq.User.Uuid())
 	ward.mux.ServeHTTP(w, rWithContext)
 }
 
