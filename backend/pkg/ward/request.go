@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -30,6 +31,24 @@ type Request struct {
 	User       User
 }
 
+type contextKey string
+
+const WardRequestKey contextKey = "WardKey"
+
+func SetWardRequest(req *http.Request, gReq *Request) *http.Request {
+	ctx := context.WithValue(req.Context(), WardRequestKey, gReq)
+	return req.WithContext(ctx)
+}
+
+func GetWardRequest(req *http.Request) *Request {
+	if val, ok := req.Context().Value(WardRequestKey).(*Request); ok && val != nil {
+		return val
+	}
+	return &Request{
+		ClientInfo: &ClientInfo{},
+		Http:       req,
+	}
+}
 func (r *Request) AssignUser(user User) {
 	r.User = user
 }
@@ -48,21 +67,11 @@ func (r *Request) Logf(format string, v ...any) {
 	log.Printf(prefix+format, v...)
 }
 
-type contextKey string
-
-const WardRequestKey contextKey = "WardKey"
-
-func SetWardRequest(req *http.Request, gReq *Request) *http.Request {
-	ctx := context.WithValue(req.Context(), WardRequestKey, gReq)
-	return req.WithContext(ctx)
-}
-
-func GetWardRequest(req *http.Request) *Request {
-	if val, ok := req.Context().Value(WardRequestKey).(*Request); ok && val != nil {
-		return val
-	}
-	return &Request{
-		ClientInfo: &ClientInfo{},
-		Http:       req,
+func (r *Request) WriteErr(status int, msg ...string) {
+	if len(msg) > 0 {
+		m := strings.Join(msg, " ")
+		http.Error(r.ResponseWriter, m, status)
+	} else {
+		http.Error(r.ResponseWriter, http.StatusText(status), status)
 	}
 }

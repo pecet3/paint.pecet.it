@@ -3,9 +3,8 @@ package api
 import (
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 
+	"paint.pecet.it/internal/paint"
 	"paint.pecet.it/internal/repo/app"
 	"paint.pecet.it/internal/repo/env"
 	"paint.pecet.it/internal/simpleauth"
@@ -13,41 +12,27 @@ import (
 )
 
 type Api struct {
-	ward *ward.Ward
-	auth *simpleauth.SimpleAuth
+	ward  *ward.Ward
+	auth  *simpleauth.SimpleAuth
+	paint *paint.Paint
 }
 
 func New(app *app.App) *Api {
-
-	return &Api{ward: app.Ward, auth: app.Auth}
+	paint := paint.New(app.Wardsocket)
+	return &Api{ward: app.Ward, auth: app.Auth, paint: paint}
 }
 
 func (api *Api) Run() {
-
 	public := api.ward.NewGroup("/api")
 	public.Post("/login", api.auth.LoginHandler)
-	public.Get("/hello", api.handleHelloWorld)
+	authorized := api.ward.NewGroup("/api").Use(api.auth.AuthMiddleware)
+	authorized.Get("/rooms/{id}", api.handleJoinRoom)
+	authorized.Post("/rooms", api.handleCreateRoom)
+	authorized.Get("/rooms", api.handleRoomsList)
 
-	protected := api.ward.NewGroup("/api").With(api.auth.AuthMiddleware)
-	protected.Get("/ws", api.handlePaintWS)
-	protected.Get("/ping", api.auth.PingHandler)
+	authorized.Get("/ping", api.auth.PingHandler)
 
-	api.ward.Get("/", func(wreq *ward.Request) {
-		distPath := "./dist"
-		path := filepath.Join(distPath, wreq.Http.URL.Path)
-		info, err := os.Stat(path)
-
-		if os.IsNotExist(err) || info.IsDir() {
-			http.ServeFile(wreq.ResponseWriter, wreq.Http, filepath.Join(distPath, "index.html"))
-			return
-		}
-
-		http.ServeFile(wreq.ResponseWriter, wreq.Http, path)
-	})
+	api.ward.Get("/", api.handleStaticFiles)
 	log.Println("Listening on port", env.Var.Port)
 	log.Fatal(http.ListenAndServe(env.Var.Port, api.ward))
-}
-
-func (api *Api) handleHelloWorld(wreq *ward.Request) {
-	wreq.Write([]byte("hello world"))
 }

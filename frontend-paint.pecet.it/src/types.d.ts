@@ -38,3 +38,16 @@ export interface WebRTCSignalPayload {
     signalType: "offer" | "answer" | "ice";
     data: any;
 }
+
+export type RoomConfig = {
+    name: string;
+    password: string;
+    is_temporary: boolean;
+};
+
+export type RoomInfo = {
+    name: string;
+    online_users: number;
+    is_temporary: boolean;
+    is_passowrd: boolean;
+};

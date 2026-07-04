@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"paint.pecet.it/pkg/ward"
 	"paint.pecet.it/pkg/ward/wardsocket"
 )
 
@@ -17,16 +16,20 @@ const (
 	height = 600
 )
 
-type User struct {
-	WardUser    ward.User
-	IsOperator  bool
-	BanDuration time.Duration
-	IsConnected bool
+type PaintRoomInfo struct {
+	Name        string `json:"name"`
+	IsTemporary bool   `json:"is_temporary"`
+	OnlineUsers int    `json:"online_users"`
+	IsPassword  bool   `json:"is_password"`
 }
-
+type RoomConfig struct {
+	Name        string `json:"name"`
+	IsTemporary bool   `json:"is_temporary"`
+	Password    string `json:"password"`
+}
 type PaintRoom struct {
-	Channel *wardsocket.Channel
-
+	Channel   *wardsocket.Channel
+	cfg       *RoomConfig
 	Canvas    *image.RGBA
 	cMu       sync.RWMutex
 	streamBuf []byte
@@ -37,8 +40,9 @@ type PaintRoom struct {
 	chatHistory []ChatMessage
 }
 
-func New(channel *wardsocket.Channel) *PaintRoom {
+func newPaintRoom(cfg *RoomConfig, channel *wardsocket.Channel) *PaintRoom {
 	p := &PaintRoom{
+		cfg:         cfg,
 		Channel:     channel,
 		Canvas:      image.NewRGBA(image.Rect(0, 0, width, height)),
 		streamBuf:   make([]byte, 0),
@@ -56,6 +60,24 @@ func (p *PaintRoom) RegisterHandlers() {
 	p.Channel.RegisterEventHandler("chat_message", p.handleChatMessage)
 	p.Channel.RegisterEventHandler("webrtc_signal", p.handleSignal)
 
+}
+func (p *PaintRoom) Info() PaintRoomInfo {
+	p.uMu.RLock()
+	defer p.uMu.RUnlock()
+
+	onlineUsers := 0
+	for _, u := range p.users {
+		if u.IsConnected {
+			onlineUsers++
+		}
+	}
+
+	return PaintRoomInfo{
+		Name:        p.cfg.Name,
+		IsTemporary: p.cfg.IsTemporary,
+		OnlineUsers: onlineUsers,
+		IsPassword:  p.cfg.Password != "",
+	}
 }
 
 func (p *PaintRoom) Run(ctx context.Context) {

@@ -5,9 +5,16 @@ import (
 	"encoding/json"
 	"time"
 
+	"paint.pecet.it/pkg/ward"
 	"paint.pecet.it/pkg/ward/wardsocket"
 )
 
+type User struct {
+	WardUser    ward.User
+	IsOperator  bool
+	BanDuration time.Duration
+	IsConnected bool
+}
 type ChatMessage struct {
 	Name    string    `json:"name"`
 	Uuid    string    `json:"uuid"`
@@ -26,6 +33,13 @@ type RoomUserEvt struct {
 	IsOperator         bool   `json:"is_operator"`
 	IsConnected        bool   `json:"is_connected"`
 	BanDurationSeconds int64  `json:"ban_duration_seconds"`
+}
+
+type SignalPayload struct {
+	TargetUUID string          `json:"targetUuid"`
+	SenderUUID string          `json:"senderUuid"`
+	SignalType string          `json:"signalType"`
+	Data       json.RawMessage `json:"data"`
 }
 
 func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
@@ -147,4 +161,24 @@ func (p *PaintRoom) handlePixelUpdate(ctx context.Context, evt *wardsocket.Event
 	defer p.cMu.Unlock()
 	p.streamBuf = append(p.streamBuf, data...)
 	p.saveBuf = append(p.saveBuf, p.streamBuf...)
+}
+
+func (p *PaintRoom) handleSignal(ctx context.Context, e *wardsocket.Event) {
+	var payload SignalPayload
+	if err := json.Unmarshal(e.Payload, &payload); err != nil {
+		e.Client.Request.Log("Invalid WebRTC signal payload:", err)
+		return
+	}
+
+	payload.SenderUUID = e.Client.Request.User.Uuid()
+
+	outgoingPayloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		e.Client.Request.Log("Failed to marshal WebRTC payload:", err)
+		return
+	}
+
+	outgoingEvent := []byte(`{"type":"webrtc_signal","payload":` + string(outgoingPayloadBytes) + `}`)
+	p.Channel.Log("webrtc", payload)
+	p.Channel.Broadcast(outgoingEvent)
 }

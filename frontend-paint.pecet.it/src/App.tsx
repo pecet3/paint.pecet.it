@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router'
 import { Home } from './pages/Home'
 import { StoreProvider, useStore } from './Store'
 import { Login, LoginAdmin } from './pages/Login';
+import { Room } from './pages/Room';
 
 
 interface ProtectedRouteProps {
@@ -34,11 +35,18 @@ function AppContent() {
             {/* <Navbar /> */}
             <Routes>
                 <Route path="/login" element={<Login />} />
-                <Route path="/login-admin" element={<LoginAdmin />} />
                 <Route path="/" element={
                     <ProtectedRoute>
                         <>
                             <Home />
+                            <div className='h-32' />
+                        </>
+                    </ProtectedRoute>
+                } />
+                <Route path="/rooms/:roomName" element={
+                    <ProtectedRoute>
+                        <>
+                            <Room />
                             <div className='h-32' />
                         </>
                     </ProtectedRoute>

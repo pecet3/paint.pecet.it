@@ -14,7 +14,12 @@ export default defineConfig({
   base: "/",
   server: {
     proxy: {
-      '/api/ws': {
+      '/api/join-room': {
+        target,
+        ws: true,
+        changeOrigin: true,
+      },
+      '/api/rooms': {
         target,
         ws: true,
         changeOrigin: true,

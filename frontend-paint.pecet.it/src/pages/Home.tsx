@@ -1,109 +1,179 @@
-import React, { useEffect, useRef, useState } from "react";
-import { PaintCanvas } from "../components/room/PaintCanvas";
-import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/room/pixel";
-import type { ChatMessage, Pixel, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
-import { Chat } from "../components/room/Chat";
-import { WebRTCManager } from "../components/room/WebRTCManager";
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router';
 
+export type RoomConfig = {
+  name: string;
+  password: string;
+  is_temporary: boolean;
+};
+
+export type RoomInfo = {
+  name: string;
+  online_users: number;
+  is_temporary: boolean;
+  is_passowrd: boolean;
+};
 
 export const Home: React.FC = () => {
-  const ws = useRef<WebSocket | null>(null);
-  const [incomingPixels, setIncomingPixels] = useState<Pixel[] | null>(null);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [users, setUsers] = useState<RoomUser[]>([]);
-  const [incomingSignal, setIncomingSignal] = useState<WebRTCSignalPayload | null>(null);
+  const [rooms, setRooms] = useState<RoomInfo[]>([]);
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  const [formData, setFormData] = useState<RoomConfig>({
+    name: '',
+    password: '',
+    is_temporary: false,
+  });
 
-
-
-  const [serverMessage, setServerMessage] = useState<ServerMessage | null>(null)
-  useEffect(() => {
-    ws.current = new WebSocket("/api/ws");
-
-    ws.current.onmessage = (message: MessageEvent) => {
-      const data = JSON.parse(message.data);
-      switch (data.type) {
-        case "canvas_pixel_update":
-          setIncomingPixels(decodeBase64ToPixels(data.payload));
-          break;
-        case "chat_message":
-          setChatMessages(prev => [...prev, data.payload as ChatMessage]);
-          break;
-        case "server_message":
-          console.log(data.payload)
-          setServerMessage(data.payload as ServerMessage)
-          break;
-        case "update_users_list":
-          setUsers(data.payload);
-          break;
-        case "update_is_operator":
-        case "update_ban_duration":
-          break;
-        case "webrtc_signal":
-          console.log(data.payload)
-          setIncomingSignal(data.payload as WebRTCSignalPayload);
-          break;
-        default:
-          console.warn(data.type);
+  const fetchRooms = async () => {
+    try {
+      const response = await fetch('/api/rooms');
+      if (response.ok) {
+        const data = await response.json();
+        setRooms(data);
       }
-    };
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
-    return () => {
-      ws.current?.close();
-    };
+  useEffect(() => {
+    fetchRooms();
   }, []);
 
-  const handleSendPixelUpdate = (pixels: Pixel[]) => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      const base64Payload = encodePixelsToBase64(pixels);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : type === 'number' ? Number(value) : value,
+    }));
+  };
 
-      ws.current.send(JSON.stringify({
-        type: "canvas_pixel_update",
-        payload: base64Payload,
-      }));
+  const handleCreateRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await fetch('/api/rooms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (response.ok) {
+        setIsFormVisible(false);
+        setFormData({ name: '', password: '', is_temporary: false });
+        fetchRooms();
+      }
+    } catch (error) {
+      console.error(error);
     }
   };
-  const handleSendChatMessage = (msg: string) => {
-    console.log(msg)
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      ws.current.send(
-        JSON.stringify({
-          type: "chat_message",
-          payload: { message: msg },
-        })
-      );
-    }
-  };
-  const handleSendSignal = (payload: WebRTCSignalPayload) => {
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      ws.current.send(
-        JSON.stringify({
-          type: "webrtc_signal",
-          payload,
-        })
-      );
-    }
-  };
+
+  const permanentRooms = rooms.filter((room) => !room.is_temporary);
+  const temporaryRooms = rooms.filter((room) => room.is_temporary);
+
+  const RoomCard = ({ room }: { room: RoomInfo }) => (
+    <div className="flex items-center justify-between p-4 mb-3 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200">
+      <div className="flex items-center gap-3">
+        <h3 className="text-lg font-semibold text-gray-800">{room.name}</h3>
+        {room.is_passowrd && (
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+          </svg>
+        )}
+        <span className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+          <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+          {room.online_users} online
+        </span>
+      </div>
+      <Link
+        to={`/rooms/${room.name}`}
+        className="px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:ring-4 focus:outline-none focus:ring-blue-300 transition-colors"
+      >
+        Join
+      </Link>
+    </div>
+  );
+
   return (
-    <div >
-      <div className="flex m-auto items-center justify-center w-full">
-        <PaintCanvas
-          onSendPixelUpdate={handleSendPixelUpdate}
-          incomingPixels={incomingPixels}
-        />
+    <div className="max-w-3xl mx-auto mt-12 mb-20 px-6 font-sans">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">Rooms</h1>
+        <button
+          onClick={() => setIsFormVisible(!isFormVisible)}
+          className={`px-5 py-2.5 text-sm font-semibold text-white rounded-lg transition-colors shadow-sm ${isFormVisible
+            ? 'bg-gray-600 hover:bg-gray-700 focus:ring-4 focus:ring-gray-300'
+            : 'bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-300'
+            }`}
+        >
+          {isFormVisible ? 'Back to List' : 'Create Room'}
+        </button>
+      </div>
 
-      </div>
-      <div className="flex text-3xl bg-gray-200/50 justify-center ">
-        {serverMessage?.message}
-      </div>
-      <div className="w-full flex">
-        <Chat users={users} messages={chatMessages} onSendMessage={handleSendChatMessage} />
+      {isFormVisible ? (
+        <form onSubmit={handleCreateRoom} className="bg-white p-8 border border-gray-200 rounded-2xl shadow-sm flex flex-col gap-6">
+          <div>
+            <label className="block mb-2 text-sm font-bold text-gray-700">Room Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              placeholder="Enter room name..."
+            />
+          </div>
 
-        <WebRTCManager
-          users={users}
-          incomingSignal={incomingSignal}
-          onSendSignal={handleSendSignal}
-        />
-      </div>
+          <div>
+            <label className="block mb-2 text-sm font-bold text-gray-700">Password <span className="text-gray-400 font-normal">(Optional)</span></label>
+            <input
+              type="password"
+              name="password"
+              value={formData.password}
+              onChange={handleInputChange}
+              className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              placeholder="Leave blank for public room"
+            />
+          </div>
+
+          <label className="flex items-center gap-3 cursor-pointer p-4 border border-gray-100 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+            <input
+              type="checkbox"
+              name="is_temporary"
+              checked={formData.is_temporary}
+              onChange={handleInputChange}
+              className="w-5 h-5 text-indigo-600 bg-white border-gray-300 rounded focus:ring-indigo-500 focus:ring-2"
+            />
+            <span className="text-sm font-semibold text-gray-700">Make this a Temporary Room</span>
+          </label>
+
+          <button
+            type="submit"
+            className="mt-2 w-full px-5 py-3.5 text-base font-bold text-white bg-emerald-500 rounded-xl hover:bg-emerald-600 focus:ring-4 focus:outline-none focus:ring-emerald-300 transition-colors shadow-sm"
+          >
+            Create New Room
+          </button>
+        </form>
+      ) : (
+        <div className="flex flex-col gap-8">
+          <div>
+            {permanentRooms.length > 0 ? (
+              permanentRooms.map((room) => <RoomCard key={room.name} room={room} />)
+            ) : (
+              <p className="text-gray-500 italic bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">No permanent rooms available.</p>
+            )}
+          </div>
+
+          <div>
+            <h2 className="text-xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">Temporary Rooms</h2>
+            {temporaryRooms.length > 0 ? (
+              temporaryRooms.map((room) => <RoomCard key={room.name} room={room} />)
+            ) : (
+              <p className="text-gray-500 italic bg-gray-50 p-4 rounded-xl border border-gray-100 text-center">No temporary rooms active right now.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
