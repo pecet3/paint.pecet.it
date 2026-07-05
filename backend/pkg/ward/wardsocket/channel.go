@@ -126,7 +126,6 @@ func (r *Channel) Run(ctx context.Context) {
 				r.cMu.RUnlock()
 
 			case msg := <-r.eventCh:
-				r.Log(msg.Type)
 				if handler, ok := r.eventHandlers[msg.Type]; ok {
 					go handler(ctx, msg)
 				} else {

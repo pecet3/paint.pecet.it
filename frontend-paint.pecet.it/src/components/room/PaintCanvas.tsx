@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { Pixel } from '../../types';
-import { paintDataSendTimestampMs } from '../../config';
 
 interface PaintCanvasProps {
     onSendPixelUpdate: (pixels: Pixel[]) => void;
@@ -54,47 +53,6 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
         }
     }, [incomingPixels]);
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            const bufferCanvas = bufferCanvasRef.current;
-            if (!bufferCanvas) return;
-
-            const ctx = bufferCanvas.getContext('2d', { willReadFrequently: true });
-            if (!ctx) return;
-
-            const { width, height } = bufferCanvas;
-            const imageData = ctx.getImageData(0, 0, width, height);
-            const data = imageData.data;
-            const changedPixels: Pixel[] = [];
-
-            for (let i = 0; i < data.length; i += 4) {
-                const alpha = data[i + 3];
-                if (alpha > 0) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-
-                    const hexColor = '#' +
-                        r.toString(16).padStart(2, '0') +
-                        g.toString(16).padStart(2, '0') +
-                        b.toString(16).padStart(2, '0') +
-                        alpha.toString(16).padStart(2, '0');
-
-                    const pixelIndex = i / 4;
-                    const x = pixelIndex % width;
-                    const y = Math.floor(pixelIndex / width);
-                    changedPixels.push({ x, y, color: hexColor });
-                }
-            }
-            if (changedPixels.length > 0) {
-                onSendPixelUpdate(changedPixels);
-                ctx.clearRect(0, 0, width, height);
-            }
-        }, paintDataSendTimestampMs);
-
-        return () => clearInterval(interval);
-    }, [onSendPixelUpdate]);
-
     const handleMouseEvent = (e: React.MouseEvent<HTMLCanvasElement>, action: 'start' | 'draw' | 'end') => {
         const mainCanvas = mainCanvasRef.current;
         const bufferCanvas = bufferCanvasRef.current;
@@ -107,7 +65,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
         setMouseCoords({ x, y });
 
         const mainCtx = mainCanvas.getContext('2d');
-        const bufferCtx = bufferCanvas.getContext('2d');
+        const bufferCtx = bufferCanvas.getContext('2d', { willReadFrequently: true });
         if (!mainCtx || !bufferCtx) return;
 
         if (action === 'start') {
@@ -126,6 +84,35 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
         if (action === 'end') {
             setIsDrawing(false);
             lastPos.current = null;
+
+            const { width, height } = bufferCanvas;
+            const imageData = bufferCtx.getImageData(0, 0, width, height);
+            const data = imageData.data;
+            const changedPixels: Pixel[] = [];
+
+            for (let i = 0; i < data.length; i += 4) {
+                const alpha = data[i + 3];
+                if (alpha > 0) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+
+                    const hexColor = '#' +
+                        r.toString(16).padStart(2, '0') +
+                        g.toString(16).padStart(2, '0') +
+                        b.toString(16).padStart(2, '0') +
+                        alpha.toString(16).padStart(2, '0');
+
+                    const pixelIndex = i / 4;
+                    const px = pixelIndex % width;
+                    const py = Math.floor(pixelIndex / width);
+                    changedPixels.push({ x: px, y: py, color: hexColor });
+                }
+            }
+            if (changedPixels.length > 0) {
+                onSendPixelUpdate(changedPixels);
+                bufferCtx.clearRect(0, 0, width, height);
+            }
             return;
         }
 
@@ -200,8 +187,6 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                     className="hidden"
                 />
             </div>
-
-
         </div>
     );
 };

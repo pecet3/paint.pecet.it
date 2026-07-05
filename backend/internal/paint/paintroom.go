@@ -84,7 +84,7 @@ func (p *PaintRoom) Info() PaintRoomInfo {
 
 func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 	go func() {
-		streamTicker := time.NewTicker(30 * time.Millisecond)
+		streamTicker := time.NewTicker(100 * time.Millisecond)
 		saveTicker := time.NewTicker(2000 * time.Millisecond)
 		syncTicker := time.NewTicker(1000 * 10 * time.Millisecond)
 		defer func() {

@@ -194,6 +194,5 @@ func (p *PaintRoom) handleSignal(ctx context.Context, e *wardsocket.Event) {
 	}
 
 	outgoingEvent := []byte(`{"type":"webrtc_signal","payload":` + string(outgoingPayloadBytes) + `}`)
-	p.Channel.Log("webrtc", payload)
 	p.Channel.Broadcast(outgoingEvent)
 }
