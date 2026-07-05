@@ -10,10 +10,13 @@ import (
 )
 
 type User struct {
-	WardUser    ward.User
-	IsOperator  bool
-	BanDuration time.Duration
-	IsConnected bool
+	WardUser      ward.User
+	IsOperator    bool
+	IsKicked      bool
+	IsConnected   bool
+	IsAbleDrawing bool
+	LastChatMsgAt time.Time
+	JoinedAt      time.Time
 }
 type ChatMessage struct {
 	Name    string    `json:"name"`
@@ -28,11 +31,11 @@ type ServerMessage struct {
 }
 
 type RoomUserEvt struct {
-	UUID               string `json:"uuid"`
-	Name               string `json:"name"`
-	IsOperator         bool   `json:"is_operator"`
-	IsConnected        bool   `json:"is_connected"`
-	BanDurationSeconds int64  `json:"ban_duration_seconds"`
+	UUID          string `json:"uuid"`
+	Name          string `json:"name"`
+	IsOperator    bool   `json:"is_operator"`
+	IsConnected   bool   `json:"is_connected"`
+	IsAbleDrawing bool   `json:"is_able_drawing"`
 }
 
 type SignalPayload struct {
@@ -70,9 +73,11 @@ func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
 
 	if !exists {
 		user = &User{
-			WardUser:    c.Request.User,
-			IsOperator:  shouldBeOperator,
-			IsConnected: true,
+			WardUser:      c.Request.User,
+			IsOperator:    shouldBeOperator,
+			IsConnected:   true,
+			JoinedAt:      time.Now(),
+			IsAbleDrawing: true,
 		}
 		p.users[uuid] = user
 	} else {
@@ -129,9 +134,18 @@ func (p *PaintRoom) handleChatMessage(ctx context.Context, event *wardsocket.Eve
 	defer p.uMu.Unlock()
 
 	uuid := event.Client.Request.User.Uuid()
-	if user, exists := p.users[uuid]; exists && user.BanDuration > 0 {
+	user, exists := p.users[uuid]
+	if !exists {
+
 		return
 	}
+	now := time.Now()
+
+	if now.Before(user.LastChatMsgAt.Add(time.Millisecond * 2000)) {
+		user.LastChatMsgAt = now
+		return
+	}
+	user.LastChatMsgAt = now
 
 	msg := ChatMessage{
 		Name:    event.Client.Request.User.Name(),

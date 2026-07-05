@@ -29,7 +29,7 @@ export interface RoomUser {
     name: string;
     is_operator: boolean;
     is_connected: boolean;
-    ban_duration_seconds: number;
+    is_able_drawing: boolean;
 }
 
 export interface WebRTCSignalPayload {

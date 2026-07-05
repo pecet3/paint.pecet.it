@@ -78,6 +78,16 @@ export const Room: React.FC = () => {
       );
     }
   };
+  const handleKick = (uuid: string) => {
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(
+        JSON.stringify({
+          type: "kick_user",
+          payload: { uuid },
+        })
+      );
+    }
+  };
   const handleSendSignal = (payload: WebRTCSignalPayload) => {
     if (ws.current && ws.current.readyState === WebSocket.OPEN) {
       ws.current.send(
@@ -99,7 +109,7 @@ export const Room: React.FC = () => {
           <div className="flex text-xl justify-center ">
             {serverMessage?.message}
           </div>
-          <Chat users={users} messages={chatMessages} onSendMessage={handleSendChatMessage} />
+          <Chat users={users} messages={chatMessages} onSendMessage={handleSendChatMessage} onKick={handleKick} />
         </div>
       </div>
 

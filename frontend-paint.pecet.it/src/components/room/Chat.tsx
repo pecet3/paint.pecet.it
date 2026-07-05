@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { ChatMessage, RoomUser } from "../../types";
+import { useStore } from "../../Store";
+import { u } from "framer-motion/client";
 
 interface ChatProps {
     messages: ChatMessage[];
     users: RoomUser[];
     onSendMessage: (message: string) => void;
+    onKick: (uuid: string) => void;
 }
 
 function formatMessageDate(dateString: string): string {
@@ -20,9 +23,16 @@ function formatMessageDate(dateString: string): string {
     });
 }
 
-export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage }) => {
+export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage, onKick }) => {
+    const { user } = useStore()
+    const [isOp, setIsOp] = useState(false)
     const [input, setInput] = useState("");
     const chatContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const localUser = users.find(u => u.uuid == user?.uuid)
+        localUser?.is_operator && setIsOp(true)
+    }, [users]);
 
     useEffect(() => {
         const container = chatContainerRef.current;
@@ -52,6 +62,7 @@ export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage }) =>
                             <span className={`w-2.5 h-2.5 rounded-full ${user.is_connected ? "bg-green-500" : "bg-gray-400"}`} />
                             <span className="truncate">{user.name}</span>
                             {user.is_operator && <span className="text-[8px] bg-blue-100 text-blue-600 px-1 rounded">OP</span>}
+                            {isOp && <button onClick={() => onKick(user.uuid)} className="cursor-pointer">kick</button>}
                         </div>
                     ))}
                 </div>

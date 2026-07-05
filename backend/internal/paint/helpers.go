@@ -50,15 +50,16 @@ func (p *PaintRoom) SendChatHistory(client *wardsocket.Client) {
 	}
 }
 func (p *PaintRoom) BroadcastUserList() {
-	var list []map[string]any
+	var list []RoomUserEvt
 	for _, u := range p.users {
-		list = append(list, map[string]any{
-			"uuid":                 u.WardUser.Uuid(),
-			"name":                 u.WardUser.Name(),
-			"is_operator":          u.IsOperator,
-			"is_connected":         u.IsConnected,
-			"ban_duration_seconds": int64(u.BanDuration.Seconds()),
+		list = append(list, RoomUserEvt{
+			UUID:          u.WardUser.Uuid(),
+			Name:          u.WardUser.Name(),
+			IsOperator:    u.IsOperator,
+			IsConnected:   u.IsConnected,
+			IsAbleDrawing: u.IsAbleDrawing,
 		})
+
 	}
 	p.broadcastEvent("update_users_list", list)
 }
