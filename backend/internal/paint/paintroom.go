@@ -27,6 +27,7 @@ type RoomConfig struct {
 	IsTemporary bool   `json:"is_temporary"`
 	Password    string `json:"password"`
 }
+
 type PaintRoom struct {
 	Channel   *wardsocket.Channel
 	cfg       *RoomConfig
@@ -122,21 +123,9 @@ func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 					p.saveCanvasBytes()
 				}()
 			case <-syncTicker.C:
-				go func() {
-					p.uMu.RLock()
-					defer p.uMu.RUnlock()
-					for _, u := range p.users {
-						log.Println(u.WardUser.Name(), u.IsConnected)
-						if u.IsConnected {
-							return
-						}
-					}
-					if time.Now().Before(p.lastLeftAt.Add(2 * time.Second)) {
-						return
-					}
-
-					p.Channel.Close()
-				}()
+				if p.cfg.IsTemporary {
+					go p.closeIfEmpty()
+				}
 			case <-ctx.Done():
 				log.Println("context done")
 				return
@@ -144,6 +133,19 @@ func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 
 		}
 	}()
+}
+func (p *PaintRoom) closeIfEmpty() {
+	p.uMu.RLock()
+	defer p.uMu.RUnlock()
+	for _, u := range p.users {
+		if u.IsConnected {
+			return
+		}
+	}
+	if time.Now().Before(p.lastLeftAt.Add(30 * time.Second)) {
+		return
+	}
+	p.Channel.Close()
 }
 
 func (p *PaintRoom) sync() {

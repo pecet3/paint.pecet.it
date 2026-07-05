@@ -16,10 +16,8 @@ export const Room: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [users, setUsers] = useState<RoomUser[]>([]);
   const [incomingSignal, setIncomingSignal] = useState<WebRTCSignalPayload | null>(null);
-
-
-
   const [serverMessage, setServerMessage] = useState<ServerMessage | null>(null)
+
   useEffect(() => {
     ws.current = new WebSocket("/api/rooms/" + roomName);
 
@@ -99,27 +97,29 @@ export const Room: React.FC = () => {
     }
   };
   return (
-    <div className="m-2 flex flex-col items-center">
-      <div className="flex gap-1 items-center justify-between w-full flex-col lg:flex-row">
+    <div className="m-2 flex flex-col items-center gap-2">
+      <div className="flex gap-1 items-center justify-center w-full flex-col lg:flex-row">
         <PaintCanvas
           onSendPixelUpdate={handleSendPixelUpdate}
           incomingPixels={incomingPixels}
         />
-        <div className="flex flex-col items-center m-0 w-full justify-center">
+        <div className="flex flex-col items-center m-auto w-full justify-between">
+          {users.length > 0 && <WebRTCManager
+            users={users}
+            incomingSignal={incomingSignal}
+            onSendSignal={handleSendSignal}
+          />}
           <div className="flex text-xl justify-center ">
             {serverMessage?.message}
           </div>
           <Chat users={users} messages={chatMessages} onSendMessage={handleSendChatMessage} onKick={handleKick} />
+
         </div>
       </div>
 
       <div className="w-full flex">
 
-        <WebRTCManager
-          users={users}
-          incomingSignal={incomingSignal}
-          onSendSignal={handleSendSignal}
-        />
+
       </div>
     </div>
   );

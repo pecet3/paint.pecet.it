@@ -130,14 +130,16 @@ func (r *Channel) Run(ctx context.Context) {
 				if handler, ok := r.eventHandlers[msg.Type]; ok {
 					go handler(ctx, msg)
 				} else {
-					r.Log("Unhandled event type: %s", msg.Type)
+					r.Log("Unhandled event type:", msg.Type)
 				}
 			case <-r.closeCh:
 				r.Log("closing Channel")
+				r.cMu.Lock()
 				for client := range r.clients {
 					close(client.sendCh)
 					delete(r.clients, client)
 				}
+				r.cMu.Unlock()
 				r.Log("removed all clients")
 				if r.cancel != nil {
 					r.Log("executing context cancel func")

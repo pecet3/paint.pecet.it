@@ -22,7 +22,7 @@ export const Home: React.FC = () => {
   const [formData, setFormData] = useState<RoomConfig>({
     name: '',
     password: '',
-    is_temporary: false,
+    is_temporary: true,
   });
 
   const fetchRooms = async () => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import type { RoomUser, WebRTCSignalPayload } from "../../types"
+import type { RoomUser, WebRTCSignalPayload } from "../../types";
 import { useStore } from "../../Store";
 
 const STUN_SERVERS = {
@@ -20,12 +20,16 @@ export const WebRTCManager: React.FC<WebRTCManagerProps> = ({
     incomingSignal,
     onSendSignal,
 }) => {
-    const { user } = useStore()
-    const localUserUuid = user?.uuid || ""
+    const { user } = useStore();
+    const localUserUuid = user?.uuid || "";
 
     const localVideoRef = useRef<HTMLVideoElement>(null);
     const [localStream, setLocalStream] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
+
+    const [isAudioEnabled, setIsAudioEnabled] = useState(true);
+    const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+    const [mutedRemotes, setMutedRemotes] = useState<Record<string, boolean>>({});
 
     const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
 
@@ -46,9 +50,35 @@ export const WebRTCManager: React.FC<WebRTCManagerProps> = ({
         };
     }, []);
 
+    const toggleLocalAudio = () => {
+        if (localStream) {
+            const audioTracks = localStream.getAudioTracks();
+            audioTracks.forEach((track) => {
+                track.enabled = !track.enabled;
+            });
+            setIsAudioEnabled(!isAudioEnabled);
+        }
+    };
+
+    const toggleLocalVideo = () => {
+        if (localStream) {
+            const videoTracks = localStream.getVideoTracks();
+            videoTracks.forEach((track) => {
+                track.enabled = !track.enabled;
+            });
+            setIsVideoEnabled(!isVideoEnabled);
+        }
+    };
+
+    const toggleRemoteMute = (uuid: string) => {
+        setMutedRemotes((prev) => ({
+            ...prev,
+            [uuid]: !prev[uuid],
+        }));
+    };
+
     const createPeerConnection = useCallback((targetUuid: string, stream: MediaStream) => {
         const pc = new RTCPeerConnection(STUN_SERVERS);
-        console.log(pc)
         stream.getTracks().forEach((track) => {
             pc.addTrack(track, stream);
         });
@@ -84,7 +114,6 @@ export const WebRTCManager: React.FC<WebRTCManagerProps> = ({
 
             const pc = createPeerConnection(user.uuid, localStream);
 
-
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
 
@@ -94,7 +123,6 @@ export const WebRTCManager: React.FC<WebRTCManagerProps> = ({
                 signalType: "offer",
                 data: offer,
             });
-
         });
 
         const currentUserUuids = new Set(users.map(u => u.uuid));
@@ -107,13 +135,17 @@ export const WebRTCManager: React.FC<WebRTCManagerProps> = ({
                     delete next[uuid];
                     return next;
                 });
+                setMutedRemotes(prev => {
+                    const next = { ...prev };
+                    delete next[uuid];
+                    return next;
+                });
             }
         }
     }, [users, localStream, localUserUuid, createPeerConnection, onSendSignal]);
 
     useEffect(() => {
         if (!incomingSignal || !localStream) return;
-
         if (incomingSignal.targetUuid !== localUserUuid) return;
 
         const { senderUuid, signalType, data } = incomingSignal;
@@ -150,31 +182,57 @@ export const WebRTCManager: React.FC<WebRTCManagerProps> = ({
     }, [incomingSignal, localStream, localUserUuid, createPeerConnection, onSendSignal]);
 
     return (
-        <div className="flex flex-col gap-4 p-4 bg-gray-900 rounded-lg shadow-md">
-            <h3 className="text-white font-bold">Kamera (Ty)</h3>
-            <video
-                ref={localVideoRef}
-                autoPlay
-                muted
-                playsInline
-                className="w-48 h-36 bg-black rounded border border-gray-600 object-cover"
-            />
+        <div className="flex flex-wrap gap-2 p-2 bg-slate-900 rounded-lg shadow-md m-2">
+            <div className="relative w-48 h-36 bg-black rounded border border-blue-500 overflow-hidden">
+                <video
+                    ref={localVideoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                />
+                <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1 rounded">
+                    you
+                </span>
+                <div className="absolute bottom-1 right-1 flex gap-1">
+                    <button
+                        onClick={toggleLocalAudio}
+                        className={`text-xs px-1.5 py-0.5 rounded text-white ${isAudioEnabled ? "bg-blue-600/80" : "bg-red-600/80"}`}
+                    >
+                        {isAudioEnabled ? "Mute" : "Unmute"}
+                    </button>
+                    <button
+                        onClick={toggleLocalVideo}
+                        className={`text-xs px-1.5 py-0.5 rounded text-white ${isVideoEnabled ? "bg-blue-600/80" : "bg-red-600/80"}`}
+                    >
+                        {isVideoEnabled ? "Cam Off" : "Cam On"}
+                    </button>
+                </div>
+            </div>
 
             {Object.entries(remoteStreams).length > 0 && (
-                <>
-                    <h3 className="text-white font-bold mt-2">Inni użytkownicy</h3>
-                    <div className="flex flex-wrap gap-2">
-                        {Object.entries(remoteStreams).map(([uuid, stream]) => (
-                            <RemoteVideo key={uuid} stream={stream} uuid={uuid} />
-                        ))}
-                    </div>
-                </>
+                <div className="flex flex-wrap gap-2">
+                    {Object.entries(remoteStreams).map(([uuid, stream]) => (
+                        <RemoteVideo
+                            key={uuid}
+                            stream={stream}
+                            user={users.find((u) => u.uuid === uuid)}
+                            isMuted={!!mutedRemotes[uuid]}
+                            onToggleMute={() => toggleRemoteMute(uuid)}
+                        />
+                    ))}
+                </div>
             )}
         </div>
     );
 };
 
-const RemoteVideo: React.FC<{ stream: MediaStream; uuid: string }> = ({ stream, uuid }) => {
+const RemoteVideo: React.FC<{
+    stream: MediaStream;
+    user?: RoomUser;
+    isMuted: boolean;
+    onToggleMute: () => void;
+}> = ({ stream, user, isMuted, onToggleMute }) => {
     const ref = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
@@ -184,16 +242,25 @@ const RemoteVideo: React.FC<{ stream: MediaStream; uuid: string }> = ({ stream, 
     }, [stream]);
 
     return (
-        <div className="relative w-48 h-36">
+        <div className="relative w-48 h-36 bg-black rounded border border-blue-500 overflow-hidden">
             <video
                 ref={ref}
                 autoPlay
                 playsInline
-                className="w-full h-full bg-black rounded border border-blue-500 object-cover"
+                muted={isMuted}
+                className="w-full h-full object-cover"
             />
             <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1 rounded">
-                {uuid.slice(0, 5)}...
+                {user ? user.name.slice(0, 16) : "user"}
             </span>
+            <div className="absolute bottom-1 right-1">
+                <button
+                    onClick={onToggleMute}
+                    className={`text-xs px-1.5 py-0.5 rounded text-white ${!isMuted ? "bg-blue-600/80" : "bg-red-600/80"}`}
+                >
+                    {isMuted ? "Unmute" : "Mute"}
+                </button>
+            </div>
         </div>
     );
 };

@@ -137,7 +137,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     };
 
     return (
-        <div className="bg-slate-700 p-2 rounded-lg m-auto border border-black flex flex-col items-center ">
+        <div className="bg-slate-700 p-2 rounded-lg w-full border border-black flex flex-col items-center ">
 
             <div className='flex items-end justify-between w-full m-auto'>
                 <div className="flex gap-1">
@@ -182,12 +182,12 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                     X: {mouseCoords.x.toString().padStart(3, '0')} | Y: {mouseCoords.y.toString().padStart(3, '0')}
                 </div>
             </div>
-            <div className="relative w-[800px] h-[600px]">
+            <div className="">
                 <canvas
                     ref={mainCanvasRef}
                     width={800}
                     height={600}
-                    className={`absolute top-0 left-0 border-2 border-gray-800 bg-white ${tool === 'text' ? 'cursor-text' : 'cursor-crosshair'}`}
+                    className={` top-0 left-0 border-2 border-gray-800 bg-white ${tool === 'text' ? 'cursor-text' : 'cursor-crosshair'}`}
                     onMouseDown={(e) => handleMouseEvent(e, 'start')}
                     onMouseMove={(e) => handleMouseEvent(e, 'draw')}
                     onMouseUp={(e) => handleMouseEvent(e, 'end')}

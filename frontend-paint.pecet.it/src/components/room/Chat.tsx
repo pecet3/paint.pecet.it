@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { ChatMessage, RoomUser } from "../../types";
 import { useStore } from "../../Store";
-import { u } from "framer-motion/client";
 
 interface ChatProps {
     messages: ChatMessage[];
@@ -53,7 +52,7 @@ export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage, onKi
     };
 
     return (
-        <div className="bg-slate-700 rounded-lg m-auto border border-black flex max-w-xl w-full h-96">
+        <div className="bg-slate-700 rounded-lg m-auto border border-black flex max-w-2xl w-full h-64">
             <div className="w-1/4 border-r border-gray-400 flex flex-col items-center bg-slate-800 rounded-l-lg">
                 <h2 className="font-bold">Users</h2>
                 <div className="flex flex-col gap-2 overflow-y-auto">
@@ -79,7 +78,8 @@ export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage, onKi
                                 <span className="font-semibold text-sm text-gray-300">{msg.name}</span>
                                 <span className="text-[10px] text-gray-400">{formatMessageDate(msg.date)}</span>
                             </div>
-                            <p className="bg-slate-300 text-left p-1 rounded-lg rounded-tl-none shadow-sm text-gray-800 text-sm border border-gray-100 break-all">
+                            <p className="bg-slate-300 text-left p-1 
+                            rounded-lg rounded-tl-none shadow-sm text-gray-800 text-xs border border-gray-100 break-all">
                                 {msg.message}
                             </p>
                         </div>
@@ -92,7 +92,7 @@ export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage, onKi
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder=""
-                        className="inpt w-full"
+                        className="inpt w-full text-xs"
                     />
                     <button type="submit" className="btn bg-black">
                         Send
