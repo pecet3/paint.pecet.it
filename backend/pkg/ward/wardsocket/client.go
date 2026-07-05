@@ -2,9 +2,17 @@ package wardsocket
 
 import (
 	"encoding/json"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"paint.pecet.it/pkg/ward"
+)
+
+const (
+	pingPeriod     = 20 * time.Second
+	writeWait      = 10 * time.Second
+	pongWait       = 25 * time.Second
+	maxMessageSize = 512 * 1024
 )
 
 type Client struct {
@@ -21,11 +29,20 @@ func (c *Client) Send(msg json.RawMessage) {
 func NewClient(conn *websocket.Conn, wreq *ward.Request) *Client {
 	return &Client{conn: conn, sendCh: make(chan json.RawMessage), Request: wreq}
 }
+
 func (c *Client) readPump(r *Channel) {
 	defer func() {
 		r.leaveCh <- c
 		c.conn.Close()
 	}()
+
+	c.conn.SetReadLimit(maxMessageSize)
+	_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error {
+		_ = c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
 	for {
 		_, bytes, err := c.conn.ReadMessage()
 		if err != nil {
@@ -45,16 +62,33 @@ func (c *Client) readPump(r *Channel) {
 }
 
 func (c *Client) writePump(r *Channel) {
+	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		ticker.Stop()
 		r.leaveCh <- c
 		c.conn.Close()
 	}()
 
-	for msg := range c.sendCh {
-		err := c.conn.WriteJSON(msg)
-		if err != nil {
-			c.Request.Log(err)
-			break
+	for {
+		select {
+		case msg, ok := <-c.sendCh:
+			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				_ = c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			err := c.conn.WriteJSON(msg)
+			if err != nil {
+				c.Request.Log(err)
+				return
+			}
+		case <-ticker.C:
+			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				c.Request.Log("Ping send err:", err)
+				return
+			}
 		}
 	}
 }

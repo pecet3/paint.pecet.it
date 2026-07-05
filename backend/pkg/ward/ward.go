@@ -3,7 +3,6 @@ package ward
 import (
 	"net/http"
 	"sync"
-	"sync/atomic"
 )
 
 type Ward struct {
@@ -70,7 +69,7 @@ func (w *Ward) NewGroup(basePath string) *Group {
 
 func (ward *Ward) Handle(pattern string, handler func(wreq *Request)) {
 	ward.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		wreq := GetWardRequest(r)
+		wreq := newRequest(ward, r)
 		wreq.ResponseWriter = w
 		wreq.Http = r
 		handler(wreq)
@@ -104,30 +103,8 @@ type Middleware func(Handler) Handler
 type Handler func(wreq *Request)
 
 func (ward *Ward) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ip := getClientIP(r)
-	ward.hMu.RLock()
-	client, ok := ward.httpClients[ip]
-	ward.hMu.RUnlock()
-	if !ok {
-		ward.hMu.Lock()
-		if client, ok = ward.httpClients[ip]; !ok {
-			client = &ClientInfo{
-				Ip: ip,
-			}
-			ward.httpClients[ip] = client
-		}
-		ward.hMu.Unlock()
-	}
-	wreq := &Request{
-		Id:             atomic.AddUint64(&ward.reqCounter, 1),
-		ClientInfo:     client,
-		User:           nUser,
-		Http:           r,
-		ResponseWriter: w,
-	}
 
-	rWithContext := SetWardRequest(r, wreq)
-	ward.mux.ServeHTTP(w, rWithContext)
+	ward.mux.ServeHTTP(w, r)
 }
 
 var nUser = &nullUser{}

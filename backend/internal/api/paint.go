@@ -29,9 +29,10 @@ func (api *Api) handleCreateRoom(wreq *ward.Request) {
 		wreq.WriteErr(400, "Room already exists")
 		return
 	}
+	cfg.IsTemporary = true
 	api.paint.CreateRoom(&cfg)
-
 }
+
 func (api *Api) handleRoomsList(wreq *ward.Request) {
 	rooms := api.paint.ListRooms()
 	json.NewEncoder(wreq.ResponseWriter).Encode(rooms)

@@ -7,7 +7,7 @@ import (
 )
 
 type EnvVars struct {
-	Port          string `envvar:"PORT" default:":8080"`
+	Port          string `envvar:"PORT" default:"0.0.0.0:8080"`
 	StaticFolder  string `envvar:"STATIC_FOLDER" default:"./dist"`
 	AdminPassword string `envvar:"ADMIN_PASSWORD" default:"bob_ross"`
 }
