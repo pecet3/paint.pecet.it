@@ -10,7 +10,6 @@ import (
 
 func (api *Api) handleJoinRoom(wreq *ward.Request) {
 	roomName := wreq.Http.PathValue("id")
-	log.Println(roomName)
 	if err := api.paint.AssignRequestToRoom(wreq, roomName); err != nil {
 		wreq.WriteErr(404, "Room not found")
 		return

@@ -14,6 +14,23 @@ type User interface {
 	Name() string
 	Uuid() string
 }
+
+type nullUser struct{}
+
+var nUser = &nullUser{}
+
+const (
+	nullUserUuid = "null"
+	nullUserName = "null"
+)
+
+func (u *nullUser) Uuid() string {
+	return nullUserUuid
+}
+func (u *nullUser) Name() string {
+	return nullUserName
+}
+
 type ClientInfo struct {
 	Uuid              string
 	LastReqDuration   time.Duration
@@ -76,10 +93,11 @@ func GetWardRequest(req *http.Request) *Request {
 }
 func (r *Request) AssignUser(user User) {
 	r.User = user
+	r.Log("UserUUID:", r.User.Uuid(), "UserName:", r.User.Name())
 }
 
 func (r *Request) LogInfo() string {
-	return fmt.Sprintf("request id: %d user uuid: %s", r.Id, r.User.Uuid())
+	return fmt.Sprintf("Reqest %d |", r.Id)
 }
 
 func (r *Request) Log(v ...any) {
@@ -99,4 +117,8 @@ func (r *Request) WriteErr(status int, msg ...string) {
 	} else {
 		http.Error(r.ResponseWriter, http.StatusText(status), status)
 	}
+}
+func (r *Request) LogWriteErr(err error, status int, msg ...string) {
+	r.Log(err)
+	r.WriteErr(status, msg...)
 }

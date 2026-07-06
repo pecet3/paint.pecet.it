@@ -128,7 +128,7 @@ export const Home: React.FC = () => {
             <div>
               <label className="">Password <span className="">(Optional)</span></label>
               <input
-                type="password"
+                type="text"
                 name="password"
                 value={formData.password}
                 onChange={handleInputChange}

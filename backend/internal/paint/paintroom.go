@@ -3,6 +3,7 @@ package paint
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"image"
 	"log"
 	"sync"
@@ -82,10 +83,20 @@ func (p *PaintRoom) Info() PaintRoomInfo {
 	}
 }
 
+func (p *PaintRoom) LogInfo() string {
+	return fmt.Sprintf("%s Room %s | ", p.Channel.LogInfo(), p.cfg.Name)
+}
+
+func (p *PaintRoom) Log(v ...any) {
+	args := append([]any{p.LogInfo()}, v...)
+	log.Println(args...)
+}
+
 func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 	go func() {
+		p.Log("is listening")
 		streamTicker := time.NewTicker(100 * time.Millisecond)
-		saveTicker := time.NewTicker(2000 * time.Millisecond)
+		saveTicker := time.NewTicker(5000 * time.Millisecond)
 		syncTicker := time.NewTicker(1000 * 10 * time.Millisecond)
 		defer func() {
 			streamTicker.Stop()
@@ -107,7 +118,7 @@ func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 
 						data, err := json.Marshal(event)
 						if err == nil {
-							p.Channel.Broadcast(data)
+							p.Channel.BroadcastStream(data)
 						}
 						p.streamBuf = p.streamBuf[:0]
 					}
@@ -120,12 +131,23 @@ func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 					if len(p.saveBuf) == 0 {
 						return
 					}
+					event := wardsocket.ByteEvent{
+						Type:    "canvas_pixel_update",
+						Payload: p.saveBuf,
+					}
+
+					data, err := json.Marshal(event)
+					if err == nil {
+						p.Channel.BroadcastStream(data)
+					}
+
 					p.saveCanvasBytes()
 				}()
 			case <-syncTicker.C:
 				if p.cfg.IsTemporary {
-					go p.closeIfEmpty()
+					p.closeIfEmpty()
 				}
+
 			case <-ctx.Done():
 				log.Println("context done")
 				return
@@ -135,12 +157,8 @@ func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 	}()
 }
 func (p *PaintRoom) closeIfEmpty() {
-	p.uMu.RLock()
-	defer p.uMu.RUnlock()
-	for _, u := range p.users {
-		if u.IsConnected {
-			return
-		}
+	if !p.isEmpty() {
+		return
 	}
 	if time.Now().Before(p.lastLeftAt.Add(30 * time.Second)) {
 		return
@@ -148,11 +166,22 @@ func (p *PaintRoom) closeIfEmpty() {
 	p.Channel.Close()
 }
 
+func (p *PaintRoom) isEmpty() bool {
+	p.uMu.RLock()
+	defer p.uMu.RUnlock()
+	for _, u := range p.users {
+		if u.IsConnected {
+			return false
+		}
+	}
+	return true
+}
+
 func (p *PaintRoom) sync() {
-	p.Channel.Log("paint sync ticker")
-
 	start := time.Now()
-
+	if p.isEmpty() {
+		return
+	}
 	p.cMu.Lock()
 	payload := p.getCanvasBytes()
 	event := wardsocket.ByteEvent{
@@ -162,9 +191,9 @@ func (p *PaintRoom) sync() {
 
 	data, err := json.Marshal(event)
 	if err == nil {
-		p.Channel.Broadcast(data)
+		p.Channel.BroadcastStream(data)
 	}
 	p.cMu.Unlock()
 
-	log.Println(time.Since(start))
+	p.Log("paint sync ticker: ", time.Since(start))
 }

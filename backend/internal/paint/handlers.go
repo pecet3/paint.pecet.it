@@ -46,6 +46,7 @@ type SignalPayload struct {
 }
 
 func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
+	p.Log(c.Request.User.Uuid(), "joined")
 	p.cMu.Lock()
 	p.saveCanvasBytes()
 	canvasEvent := wardsocket.ByteEvent{
@@ -95,6 +96,7 @@ func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
 }
 
 func (p *PaintRoom) handleLeave(ctx context.Context, client *wardsocket.Client) {
+	p.Log(client.Request.LogInfo(), "left")
 	p.uMu.Lock()
 	uuid := client.Request.User.Uuid()
 	if user, exists := p.users[uuid]; exists {

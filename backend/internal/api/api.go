@@ -18,8 +18,11 @@ type Api struct {
 }
 
 func New(app *app.App) *Api {
-	paint := paint.New(app.Wardsocket)
-	return &Api{ward: app.Ward, auth: app.Auth, paint: paint}
+	app.Paint.CreateRoom(&paint.RoomConfig{
+		Name:        "general",
+		IsTemporary: false,
+	})
+	return &Api{ward: app.Ward, auth: app.Auth, paint: app.Paint}
 }
 
 func (api *Api) Run() {

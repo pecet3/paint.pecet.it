@@ -32,21 +32,28 @@ export const WebRTCManager: React.FC<WebRTCManagerProps> = ({
     const [mutedRemotes, setMutedRemotes] = useState<Record<string, boolean>>({});
 
     const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
+    const pendingCandidates = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
 
     useEffect(() => {
+        let isMounted = true;
+
         navigator.mediaDevices
             .getUserMedia({ video: true, audio: true })
             .then((stream) => {
+                if (!isMounted) return;
                 setLocalStream(stream);
                 if (localVideoRef.current) {
                     localVideoRef.current.srcObject = stream;
                 }
             })
-            .catch((err) => console.error("WebRTC getUserMedia error:", err));
+            .catch((err) => console.error(err));
 
         return () => {
+            isMounted = false;
             localStream?.getTracks().forEach((track) => track.stop());
             peerConnections.current.forEach((pc) => pc.close());
+            peerConnections.current.clear();
+            pendingCandidates.current.clear();
         };
     }, []);
 
@@ -77,11 +84,20 @@ export const WebRTCManager: React.FC<WebRTCManagerProps> = ({
         }));
     };
 
-    const createPeerConnection = useCallback((targetUuid: string, stream: MediaStream) => {
+    const createPeerConnection = useCallback((targetUuid: string, stream: MediaStream | null) => {
+        if (peerConnections.current.has(targetUuid)) {
+            return peerConnections.current.get(targetUuid)!;
+        }
+
         const pc = new RTCPeerConnection(STUN_SERVERS);
-        stream.getTracks().forEach((track) => {
-            pc.addTrack(track, stream);
-        });
+        peerConnections.current.set(targetUuid, pc);
+        pendingCandidates.current.set(targetUuid, []);
+
+        if (stream) {
+            stream.getTracks().forEach((track) => {
+                pc.addTrack(track, stream);
+            });
+        }
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
@@ -95,86 +111,120 @@ export const WebRTCManager: React.FC<WebRTCManagerProps> = ({
         };
 
         pc.ontrack = (event) => {
-            setRemoteStreams((prev) => ({
-                ...prev,
-                [targetUuid]: event.streams[0],
-            }));
+            setRemoteStreams((prev) => {
+                const existingStream = prev[targetUuid] || new MediaStream();
+                existingStream.addTrack(event.track);
+                return {
+                    ...prev,
+                    [targetUuid]: existingStream,
+                };
+            });
         };
 
-        peerConnections.current.set(targetUuid, pc);
+        pc.oniceconnectionstatechange = () => {
+            const state = pc.iceConnectionState;
+            if (state === "failed" || state === "disconnected" || state === "closed") {
+                pc.close();
+                peerConnections.current.delete(targetUuid);
+                pendingCandidates.current.delete(targetUuid);
+
+                setRemoteStreams((prev) => {
+                    const next = { ...prev };
+                    delete next[targetUuid];
+                    return next;
+                });
+            }
+        };
+
+        pc.onnegotiationneeded = async () => {
+            try {
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                onSendSignal({
+                    targetUuid,
+                    senderUuid: localUserUuid,
+                    signalType: "offer",
+                    data: pc.localDescription,
+                });
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
         return pc;
     }, [localUserUuid, onSendSignal]);
 
     useEffect(() => {
         if (!localStream) return;
 
-        users.forEach(async (user) => {
+        users.forEach((user) => {
             if (user.uuid === localUserUuid) return;
-            if (peerConnections.current.has(user.uuid)) return;
-
-            const pc = createPeerConnection(user.uuid, localStream);
-
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-
-            onSendSignal({
-                targetUuid: user.uuid,
-                senderUuid: localUserUuid,
-                signalType: "offer",
-                data: offer,
-            });
+            createPeerConnection(user.uuid, localStream);
         });
 
-        const currentUserUuids = new Set(users.map(u => u.uuid));
+        const currentUserUuids = new Set(users.map((u) => u.uuid));
         for (const [uuid, pc] of peerConnections.current.entries()) {
             if (!currentUserUuids.has(uuid)) {
                 pc.close();
                 peerConnections.current.delete(uuid);
-                setRemoteStreams(prev => {
+                pendingCandidates.current.delete(uuid);
+
+                setRemoteStreams((prev) => {
                     const next = { ...prev };
                     delete next[uuid];
                     return next;
                 });
-                setMutedRemotes(prev => {
+                setMutedRemotes((prev) => {
                     const next = { ...prev };
                     delete next[uuid];
                     return next;
                 });
             }
         }
-    }, [users, localStream, localUserUuid, createPeerConnection, onSendSignal]);
+    }, [users, localStream, localUserUuid, createPeerConnection]);
 
     useEffect(() => {
-        if (!incomingSignal || !localStream) return;
+        if (!incomingSignal) return;
         if (incomingSignal.targetUuid !== localUserUuid) return;
 
         const { senderUuid, signalType, data } = incomingSignal;
-
-        let pc = peerConnections.current.get(senderUuid);
-        if (!pc) {
-            pc = createPeerConnection(senderUuid, localStream);
-        }
+        const pc = createPeerConnection(senderUuid, localStream);
 
         const processSignal = async () => {
             try {
                 if (signalType === "offer") {
-                    await pc!.setRemoteDescription(new RTCSessionDescription(data));
-                    const answer = await pc!.createAnswer();
-                    await pc!.setLocalDescription(answer);
+                    await pc.setRemoteDescription(new RTCSessionDescription(data));
+
+                    const candidates = pendingCandidates.current.get(senderUuid) || [];
+                    for (const candidate of candidates) {
+                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+                    }
+                    pendingCandidates.current.set(senderUuid, []);
+
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
 
                     onSendSignal({
                         targetUuid: senderUuid,
                         senderUuid: localUserUuid,
                         signalType: "answer",
-                        data: answer,
+                        data: pc.localDescription,
                     });
                 } else if (signalType === "answer") {
-                    await pc!.setRemoteDescription(new RTCSessionDescription(data));
+                    if (pc.signalingState === "have-local-offer") {
+                        await pc.setRemoteDescription(new RTCSessionDescription(data));
+                    }
                 } else if (signalType === "ice") {
-                    await pc!.addIceCandidate(new RTCIceCandidate(data));
+                    if (pc.remoteDescription) {
+                        await pc.addIceCandidate(new RTCIceCandidate(data));
+                    } else {
+                        const candidates = pendingCandidates.current.get(senderUuid) || [];
+                        candidates.push(data);
+                        pendingCandidates.current.set(senderUuid, candidates);
+                    }
                 }
             } catch (err) {
-                console.error("Signal processing error:", err);
+                console.error(err);
             }
         };
 

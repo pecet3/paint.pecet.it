@@ -36,7 +36,7 @@ func (p *Paint) GetRoom(roomIdent string) *PaintRoom {
 
 func (p *Paint) CreateRoom(cfg *RoomConfig) {
 	ctx := context.Background()
-	channel, ctx := wardsocket.NewChannel(cfg.Name).WithCancelContext(ctx)
+	channel, ctx := wardsocket.NewChannel().WithCancelContext(ctx)
 	room := newPaintRoom(cfg, channel)
 	room.RegisterHandlers()
 	room.Run(p, ctx)

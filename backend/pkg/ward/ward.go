@@ -67,11 +67,12 @@ func (w *Ward) NewGroup(basePath string) *Group {
 	}
 }
 
-func (ward *Ward) Handle(pattern string, handler func(wreq *Request)) {
+func (ward *Ward) HandleFunc(pattern string, handler func(wreq *Request)) {
 	ward.mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		wreq := newRequest(ward, r)
+		wreq := GetWardRequest(r)
 		wreq.ResponseWriter = w
 		wreq.Http = r
+		wreq.Log(wreq.ClientInfo.Ip, r.Method, r.URL.Path)
 		handler(wreq)
 	})
 }
@@ -80,7 +81,7 @@ func (ward *Ward) middleware(pattern string, handler func(wreq *Request), mws ..
 	for i := len(mws) - 1; i >= 0; i-- {
 		handler = mws[i](handler)
 	}
-	ward.Handle(pattern, handler)
+	ward.HandleFunc(pattern, handler)
 }
 
 func (ward *Ward) Get(pattern string, handler func(wreq *Request), mws ...Middleware) {
@@ -103,23 +104,7 @@ type Middleware func(Handler) Handler
 type Handler func(wreq *Request)
 
 func (ward *Ward) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-
-	ward.mux.ServeHTTP(w, r)
-}
-
-var nUser = &nullUser{}
-
-const (
-	nullUserUuid = "null-user-uuid"
-	nullUserName = "nullUserName"
-)
-
-type nullUser struct{}
-
-func (u *nullUser) Uuid() string {
-	return nullUserUuid
-}
-
-func (u *nullUser) Name() string {
-	return nullUserName
+	wreq := newRequest(ward, r)
+	rCtx := SetWardRequest(r, wreq)
+	ward.mux.ServeHTTP(w, rCtx)
 }

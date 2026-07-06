@@ -21,7 +21,6 @@ func (p *PaintRoom) broadcastEvent(eventType string, payload any) {
 	if err != nil {
 		return
 	}
-	p.Channel.Log(eventType, payload)
 	p.Channel.Broadcast(evtData)
 }
 

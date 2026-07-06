@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { PaintCanvas } from "../components/room/PaintCanvas";
+import { PaintCanvas } from "../components/room/PaintCanvas2";
 import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/room/pixel";
 import type { ChatMessage, Pixel, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
 import { Chat } from "../components/room/Chat";
@@ -104,7 +104,7 @@ export const Room: React.FC = () => {
           incomingPixels={incomingPixels}
         />
         <div className="flex flex-col items-center m-auto w-full justify-between">
-          {users.length > 0 && <WebRTCManager
+          {<WebRTCManager
             users={users}
             incomingSignal={incomingSignal}
             onSendSignal={handleSendSignal}

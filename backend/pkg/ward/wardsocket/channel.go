@@ -6,15 +6,18 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"sync/atomic"
 )
 
-type Channel struct {
-	Ident string
+var channelCounter uint64
 
+type Channel struct {
+	ID      uint64
 	clients map[*Client]bool
 	cMu     sync.RWMutex
 
 	broadcastCh chan json.RawMessage
+	streamCh    chan json.RawMessage
 	joinCh      chan *Client
 	leaveCh     chan *Client
 	eventCh     chan *Event
@@ -28,14 +31,15 @@ type Channel struct {
 	closeCh chan struct{}
 }
 
-func NewChannel(ident string) *Channel {
+func NewChannel() *Channel {
 	r := &Channel{
-		Ident:       ident,
+		ID:          atomic.AddUint64(&channelCounter, 1),
 		clients:     make(map[*Client]bool),
-		broadcastCh: make(chan json.RawMessage),
-		joinCh:      make(chan *Client),
-		leaveCh:     make(chan *Client),
-		eventCh:     make(chan *Event),
+		broadcastCh: make(chan json.RawMessage, 10),
+		joinCh:      make(chan *Client, 1),
+		leaveCh:     make(chan *Client, 1),
+		eventCh:     make(chan *Event, 10),
+		streamCh:    make(chan json.RawMessage, 10),
 
 		eventHandlers: make(map[string]func(context.Context, *Event)),
 		joinHandlers:  []func(context.Context, *Client){},
@@ -55,7 +59,9 @@ func (r *Channel) WithCancelContext(ctx context.Context) (*Channel, context.Cont
 func (r *Channel) Broadcast(msg json.RawMessage) {
 	r.broadcastCh <- msg
 }
-
+func (r *Channel) BroadcastStream(msg json.RawMessage) {
+	r.streamCh <- msg
+}
 func (r *Channel) LeaveClient(client *Client) {
 	r.leaveCh <- client
 }
@@ -85,7 +91,7 @@ func (r *Channel) Close() {
 }
 
 func (r *Channel) LogInfo() string {
-	return fmt.Sprintf("Channel: %s", r.Ident)
+	return fmt.Sprintf("Channel %d |", r.ID)
 }
 
 func (r *Channel) Log(v ...any) {
@@ -124,15 +130,21 @@ func (r *Channel) Run(ctx context.Context) {
 					client.sendCh <- msg
 				}
 				r.cMu.RUnlock()
+			case msg := <-r.streamCh:
+				r.cMu.RLock()
+				for client := range r.clients {
+					client.sendCh <- msg
+				}
+				r.cMu.RUnlock()
 
 			case msg := <-r.eventCh:
 				if handler, ok := r.eventHandlers[msg.Type]; ok {
 					go handler(ctx, msg)
 				} else {
-					r.Log("Unhandled event type:", msg.Type)
+					r.Log("unhandled event type:", msg.Type)
 				}
 			case <-r.closeCh:
-				r.Log("closing Channel")
+				r.Log("closing")
 				r.cMu.Lock()
 				for client := range r.clients {
 					close(client.sendCh)
