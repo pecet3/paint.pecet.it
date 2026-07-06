@@ -45,37 +45,31 @@ type SignalPayload struct {
 	Data       json.RawMessage `json:"data"`
 }
 
-func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
-	p.Log(c.Request.User.Uuid(), "joined")
-	p.cMu.Lock()
-	p.saveCanvasBytes()
+func (p *PaintRoom) handleGetAllCanvas(ctx context.Context, event *wardsocket.Event) {
+	p.cMu.RLock()
 	canvasEvent := wardsocket.ByteEvent{
 		Type:    "canvas_pixel_update",
-		Payload: p.getCanvasBytes(),
+		Payload: append(p.getCanvasBytes(), p.saveBuf...),
 	}
-	p.cMu.Unlock()
+	p.cMu.RUnlock()
+
 	if data, err := json.Marshal(canvasEvent); err == nil {
-		c.Send(data)
+		event.Client.Send(data)
 	}
+}
+
+func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
+	p.Log(c.Request.User.Uuid(), "joined")
 
 	p.uMu.Lock()
-
+	defer p.uMu.Unlock()
 	uuid := c.Request.User.Uuid()
 	user, exists := p.users[uuid]
-
-	operatorCount := 0
-	for _, u := range p.users {
-		if u.IsConnected && u.IsOperator {
-			operatorCount++
-		}
-	}
-
-	shouldBeOperator := operatorCount == 0
 
 	if !exists {
 		user = &User{
 			WardUser:      c.Request.User,
-			IsOperator:    shouldBeOperator,
+			IsOperator:    len(p.users) == 0,
 			IsConnected:   true,
 			JoinedAt:      time.Now(),
 			IsAbleDrawing: true,
@@ -83,41 +77,27 @@ func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
 		p.users[uuid] = user
 	} else {
 		user.IsConnected = true
-		if shouldBeOperator {
-			user.IsOperator = true
-		}
+
 	}
 
 	p.SendChatHistory(c)
 	p.BroadcastUserList()
-	p.uMu.Unlock()
 	p.BroadcastServerMessage(c.Request.User.Name() + " joined")
 
+	outgoingEvent := []byte(`{"type":"join_confirmation","payload":""}`)
+	c.Send(outgoingEvent)
 }
 
 func (p *PaintRoom) handleLeave(ctx context.Context, client *wardsocket.Client) {
 	p.Log(client.Request.LogInfo(), "left")
 	p.uMu.Lock()
+	defer p.uMu.Unlock()
 	uuid := client.Request.User.Uuid()
 	if user, exists := p.users[uuid]; exists {
 		user.IsConnected = false
-
-		if user.IsOperator {
-			assigned := false
-			for _, u := range p.users {
-				if u.IsConnected && u.WardUser.Uuid() != uuid {
-					u.IsOperator = true
-					assigned = true
-					break
-				}
-			}
-			if assigned {
-				user.IsOperator = false
-			}
-		}
 	}
+
 	p.lastLeftAt = time.Now()
-	p.uMu.Unlock()
 
 	p.BroadcastServerMessage(client.Request.User.Name() + " left")
 

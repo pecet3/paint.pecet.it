@@ -5,18 +5,20 @@ import { paintDataSendTimestampMs } from '../../config';
 interface PaintCanvasProps {
     onSendPixelUpdate: (pixels: Pixel[]) => void;
     incomingPixels: Pixel[] | null;
+    pixelSendIntervalMs: number;
 }
 
 export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     onSendPixelUpdate,
     incomingPixels,
+    pixelSendIntervalMs
 }) => {
     const mainCanvasRef = useRef<HTMLCanvasElement>(null);
     const bufferCanvasRef = useRef<HTMLCanvasElement>(null);
 
     const [tool, setTool] = useState<'draw' | 'text'>('draw');
-    const [textValue, setTextValue] = useState<string>('Hello world');
-    const [fontSize, setFontSize] = useState<number>(24);
+    const [textValue, setTextValue] = useState<string>(':)');
+    const [fontSize, setFontSize] = useState<number>(20);
 
     const [color, setColor] = useState<string>('#000000');
     const [brushSize, setBrushSize] = useState<number>(1);
@@ -39,7 +41,8 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
 
     const drawText = (ctx: CanvasRenderingContext2D, x: number, y: number, text: string, c: string, size: number) => {
         ctx.fillStyle = c;
-        ctx.font = `${size}px Arial`;
+        // ctx.font = `${size}px Arial`;
+        ctx.font = `italic small-caps bold ${size}px 'Courier New', monospace`
         ctx.fillText(text, x, y);
     };
 
@@ -90,7 +93,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                 onSendPixelUpdate(changedPixels);
                 ctx.clearRect(0, 0, width, height);
             }
-        }, paintDataSendTimestampMs);
+        }, pixelSendIntervalMs);
 
         return () => clearInterval(interval);
     }, [onSendPixelUpdate]);
@@ -159,7 +162,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                     {tool === 'draw' && (
                         <label className="flex items-center">
                             Brush size: {brushSize}px
-                            <input type="range" min="1" max="10" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))}
+                            <input type="range" min="1" max="16" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))}
                                 className="" />
                         </label>
                     )}

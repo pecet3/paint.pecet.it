@@ -36,8 +36,8 @@ func NewChannel() *Channel {
 		ID:          atomic.AddUint64(&channelCounter, 1),
 		clients:     make(map[*Client]bool),
 		broadcastCh: make(chan json.RawMessage, 10),
-		joinCh:      make(chan *Client, 1),
-		leaveCh:     make(chan *Client, 1),
+		joinCh:      make(chan *Client, 10),
+		leaveCh:     make(chan *Client, 10),
 		eventCh:     make(chan *Event, 10),
 		streamCh:    make(chan json.RawMessage, 10),
 
@@ -112,11 +112,13 @@ func (r *Channel) Run(ctx context.Context) {
 					}
 				}
 			case client := <-r.leaveCh:
+
 				if len(r.leaveHandlers) > 0 {
 					for _, handle := range r.leaveHandlers {
 						go handle(ctx, client)
 					}
 				}
+
 				r.cMu.Lock()
 				if _, ok := r.clients[client]; ok {
 					delete(r.clients, client)

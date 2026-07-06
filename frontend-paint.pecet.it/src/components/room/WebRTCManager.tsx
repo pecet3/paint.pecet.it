@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import type { RoomUser, WebRTCSignalPayload } from "../../types";
 import { useStore } from "../../Store";
 
@@ -11,306 +11,277 @@ const STUN_SERVERS = {
 
 interface WebRTCManagerProps {
     users: RoomUser[];
-    incomingSignal: WebRTCSignalPayload | null;
     onSendSignal: (payload: WebRTCSignalPayload) => void;
+    onDataReceived?: (payload: string) => void;
+}
+export interface WebRTCManagerHandle {
+    receiveSignal: (signal: WebRTCSignalPayload) => void;
+    broadcastData: (payload: string) => void;
+}
+interface PeerData {
+    pc: RTCPeerConnection;
+    iceQueue: RTCIceCandidateInit[];
+    dataChannel?: RTCDataChannel;
 }
 
-export const WebRTCManager: React.FC<WebRTCManagerProps> = ({
+// ----------------------------------------------------------------------
+// Pomocniczy komponent wideo
+// ----------------------------------------------------------------------
+const VideoPlayer: React.FC<{ stream: MediaStream | null; muted?: boolean; label: string }> = ({ stream, muted = false, label }) => {
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    useEffect(() => {
+        if (videoRef.current && stream) {
+            videoRef.current.srcObject = stream;
+        }
+    }, [stream]);
+
+    return (
+        <div className="relative bg-gray-800 rounded-xl overflow-hidden border
+         border-gray-700 flex items-center justify-center aspect-video shadow-sm">
+            {stream ? (
+                <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted={muted}
+                    className="w-full h-full object-cover"
+                />
+            ) : (
+                <span className="text-gray-500 text-sm font-medium animate-pulse">Connecting</span>
+            )}
+            <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm text-gray-200 text-xs px-2 py-1 rounded-md max-w-[80%] truncate">
+                {label}
+            </div>
+        </div>
+    );
+};
+
+// ----------------------------------------------------------------------
+// Główny komponent WebRTCManager
+// ----------------------------------------------------------------------
+export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>(({
     users,
-    incomingSignal,
     onSendSignal,
-}) => {
+    onDataReceived,
+}, ref) => {
     const { user } = useStore();
     const localUserUuid = user?.uuid || "";
 
-    const localVideoRef = useRef<HTMLVideoElement>(null);
-    const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+    const localStreamRef = useRef<MediaStream | null>(null);
+    const peersRef = useRef<Map<string, PeerData>>(new Map());
+
+    const signalQueueRef = useRef<WebRTCSignalPayload[]>([]);
+    const isProcessingRef = useRef<boolean>(false);
+
+    const [isMediaReady, setIsMediaReady] = useState(false);
+    const [localStreamDisplay, setLocalStreamDisplay] = useState<MediaStream | null>(null);
     const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-    const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-    const [mutedRemotes, setMutedRemotes] = useState<Record<string, boolean>>({});
-
-    const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
-    const pendingCandidates = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());
-
+    // 1. Inicjalizacja lokalnego strumienia (niska jakość)
     useEffect(() => {
         let isMounted = true;
 
-        navigator.mediaDevices
-            .getUserMedia({ video: true, audio: true })
-            .then((stream) => {
-                if (!isMounted) return;
-                setLocalStream(stream);
-                if (localVideoRef.current) {
-                    localVideoRef.current.srcObject = stream;
+        const initMedia = async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 320, max: 480 }, height: { ideal: 240, max: 360 }, frameRate: { ideal: 10, max: 15 } },
+                    audio: { sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
+                });
+
+                if (isMounted) {
+                    localStreamRef.current = stream;
+                    setLocalStreamDisplay(stream);
+                    setIsMediaReady(true);
+                } else {
+                    stream.getTracks().forEach(track => track.stop());
                 }
-            })
-            .catch((err) => console.error(err));
+            } catch (err) {
+                console.error("Błąd kamery/mikrofonu:", err);
+                setErrorMsg("Błąd dostępu do kamery lub mikrofonu.");
+            }
+        };
+
+        if (localUserUuid) initMedia();
 
         return () => {
             isMounted = false;
-            localStream?.getTracks().forEach((track) => track.stop());
-            peerConnections.current.forEach((pc) => pc.close());
-            peerConnections.current.clear();
-            pendingCandidates.current.clear();
+            localStreamRef.current?.getTracks().forEach(track => track.stop());
+            localStreamRef.current = null;
         };
-    }, []);
+    }, [localUserUuid]);
 
-    const toggleLocalAudio = () => {
-        if (localStream) {
-            const audioTracks = localStream.getAudioTracks();
-            audioTracks.forEach((track) => {
-                track.enabled = !track.enabled;
-            });
-            setIsAudioEnabled(!isAudioEnabled);
-        }
-    };
-
-    const toggleLocalVideo = () => {
-        if (localStream) {
-            const videoTracks = localStream.getVideoTracks();
-            videoTracks.forEach((track) => {
-                track.enabled = !track.enabled;
-            });
-            setIsVideoEnabled(!isVideoEnabled);
-        }
-    };
-
-    const toggleRemoteMute = (uuid: string) => {
-        setMutedRemotes((prev) => ({
-            ...prev,
-            [uuid]: !prev[uuid],
-        }));
-    };
-
-    const createPeerConnection = useCallback((targetUuid: string, stream: MediaStream | null) => {
-        if (peerConnections.current.has(targetUuid)) {
-            return peerConnections.current.get(targetUuid)!;
-        }
-
+    // 2. Tworzenie PeerConnection i czyszczenie w razie awarii ICE
+    const createPeer = useCallback((targetUuid: string) => {
         const pc = new RTCPeerConnection(STUN_SERVERS);
-        peerConnections.current.set(targetUuid, pc);
-        pendingCandidates.current.set(targetUuid, []);
+        const peerData: PeerData = { pc, iceQueue: [] };
+        peersRef.current.set(targetUuid, peerData);
 
-        if (stream) {
-            stream.getTracks().forEach((track) => {
-                pc.addTrack(track, stream);
+        if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach(track => {
+                pc.addTrack(track, localStreamRef.current!);
             });
         }
 
         pc.onicecandidate = (event) => {
             if (event.candidate) {
-                onSendSignal({
-                    targetUuid,
-                    senderUuid: localUserUuid,
-                    signalType: "ice",
-                    data: event.candidate,
-                });
+                onSendSignal({ targetUuid, senderUuid: localUserUuid, signalType: "ice", data: event.candidate });
             }
         };
 
         pc.ontrack = (event) => {
-            setRemoteStreams((prev) => {
-                const existingStream = prev[targetUuid] || new MediaStream();
-                existingStream.addTrack(event.track);
-                return {
-                    ...prev,
-                    [targetUuid]: existingStream,
-                };
-            });
+            if (event.streams && event.streams[0]) {
+                setRemoteStreams(prev => ({ ...prev, [targetUuid]: event.streams[0] }));
+            }
         };
 
+        // Auto-leczenie: jeśli połączenie padnie na poziomie sieci, usuwamy je
         pc.oniceconnectionstatechange = () => {
-            const state = pc.iceConnectionState;
-            if (state === "failed" || state === "disconnected" || state === "closed") {
+            if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+                console.warn(`Połączenie z ${targetUuid} zerwane (stan: ${pc.iceConnectionState}). Czyścimy...`);
                 pc.close();
-                peerConnections.current.delete(targetUuid);
-                pendingCandidates.current.delete(targetUuid);
-
-                setRemoteStreams((prev) => {
-                    const next = { ...prev };
-                    delete next[targetUuid];
-                    return next;
+                peersRef.current.delete(targetUuid);
+                setRemoteStreams(prev => {
+                    const newState = { ...prev };
+                    delete newState[targetUuid];
+                    return newState;
                 });
             }
         };
 
-        pc.onnegotiationneeded = async () => {
-            try {
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
-                onSendSignal({
-                    targetUuid,
-                    senderUuid: localUserUuid,
-                    signalType: "offer",
-                    data: pc.localDescription,
-                });
-            } catch (err) {
-                console.error(err);
-            }
-        };
-
-        return pc;
+        return peerData;
     }, [localUserUuid, onSendSignal]);
 
+    // 3. Obsługa nowych użytkowników
     useEffect(() => {
-        if (!localStream) return;
+        if (!localUserUuid || !isMediaReady) return;
 
-        users.forEach((user) => {
-            if (user.uuid === localUserUuid) return;
-            createPeerConnection(user.uuid, localStream);
+        users.forEach(u => {
+            if (u.uuid !== localUserUuid && u.is_connected && !peersRef.current.has(u.uuid)) {
+                const peerData = createPeer(u.uuid);
+
+                if (localUserUuid > u.uuid) {
+                    peerData.pc.createOffer()
+                        .then(offer => peerData.pc.setLocalDescription(offer))
+                        .then(() => {
+                            onSendSignal({ targetUuid: u.uuid, senderUuid: localUserUuid, signalType: "offer", data: peerData.pc.localDescription });
+                        })
+                        .catch(err => console.error("Błąd tworzenia oferty dla", u.uuid, err));
+                }
+            }
         });
 
-        const currentUserUuids = new Set(users.map((u) => u.uuid));
-        for (const [uuid, pc] of peerConnections.current.entries()) {
-            if (!currentUserUuids.has(uuid)) {
-                pc.close();
-                peerConnections.current.delete(uuid);
-                pendingCandidates.current.delete(uuid);
-
-                setRemoteStreams((prev) => {
-                    const next = { ...prev };
-                    delete next[uuid];
-                    return next;
-                });
-                setMutedRemotes((prev) => {
-                    const next = { ...prev };
-                    delete next[uuid];
-                    return next;
+        const activeUuids = new Set(users.filter(u => u.is_connected).map(u => u.uuid));
+        peersRef.current.forEach((peerData, targetUuid) => {
+            if (!activeUuids.has(targetUuid)) {
+                peerData.pc.close();
+                peersRef.current.delete(targetUuid);
+                setRemoteStreams(prev => {
+                    const newState = { ...prev };
+                    delete newState[targetUuid];
+                    return newState;
                 });
             }
-        }
-    }, [users, localStream, localUserUuid, createPeerConnection]);
+        });
+    }, [users, localUserUuid, isMediaReady, createPeer, onSendSignal]);
 
-    useEffect(() => {
-        if (!incomingSignal) return;
-        if (incomingSignal.targetUuid !== localUserUuid) return;
+    // 4. Masywna zmiana: Rygorystyczny procesor sygnałów z MUTEXEM
+    const processSignalQueue = useCallback(async () => {
+        // Jeśli kamera nie jest gotowa LUB już przetwarzamy kolejkę, uciekamy.
+        if (!isMediaReady || isProcessingRef.current || signalQueueRef.current.length === 0) return;
 
-        const { senderUuid, signalType, data } = incomingSignal;
-        const pc = createPeerConnection(senderUuid, localStream);
+        isProcessingRef.current = true; // ZAKŁADAMY BLOKADĘ (MUTEX)
 
-        const processSignal = async () => {
-            try {
-                if (signalType === "offer") {
-                    await pc.setRemoteDescription(new RTCSessionDescription(data));
+        try {
+            // Przetwarzaj pętlą while, upewniając się, że wykonujemy po jednym zadaniu na raz
+            while (signalQueueRef.current.length > 0) {
+                const signal = signalQueueRef.current.shift();
+                if (!signal) continue;
 
-                    const candidates = pendingCandidates.current.get(senderUuid) || [];
-                    for (const candidate of candidates) {
-                        await pc.addIceCandidate(new RTCIceCandidate(candidate));
-                    }
-                    pendingCandidates.current.set(senderUuid, []);
+                const { senderUuid, signalType, data } = signal;
 
-                    const answer = await pc.createAnswer();
-                    await pc.setLocalDescription(answer);
-
-                    onSendSignal({
-                        targetUuid: senderUuid,
-                        senderUuid: localUserUuid,
-                        signalType: "answer",
-                        data: pc.localDescription,
-                    });
-                } else if (signalType === "answer") {
-                    if (pc.signalingState === "have-local-offer") {
-                        await pc.setRemoteDescription(new RTCSessionDescription(data));
-                    }
-                } else if (signalType === "ice") {
-                    if (pc.remoteDescription) {
-                        await pc.addIceCandidate(new RTCIceCandidate(data));
-                    } else {
-                        const candidates = pendingCandidates.current.get(senderUuid) || [];
-                        candidates.push(data);
-                        pendingCandidates.current.set(senderUuid, candidates);
-                    }
+                let peerData = peersRef.current.get(senderUuid);
+                if (!peerData) {
+                    peerData = createPeer(senderUuid);
                 }
-            } catch (err) {
-                console.error(err);
+
+                const { pc, iceQueue } = peerData;
+
+                try {
+                    if (signalType === "offer") {
+                        // Dodatkowe zabezpieczenie: ignoruj ofertę, jeśli my już wysłaliśmy (signaling state collision)
+                        if (pc.signalingState !== "stable" && pc.signalingState !== "have-local-offer") {
+                            console.warn("Zignorowano ofertę od", senderUuid, "z powodu stanu", pc.signalingState);
+                            continue;
+                        }
+                        await pc.setRemoteDescription(new RTCSessionDescription(data));
+                        const answer = await pc.createAnswer();
+                        await pc.setLocalDescription(answer);
+                        onSendSignal({ targetUuid: senderUuid, senderUuid: localUserUuid, signalType: "answer", data: pc.localDescription });
+
+                        while (iceQueue.length > 0) {
+                            const ice = iceQueue.shift();
+                            if (ice) await pc.addIceCandidate(new RTCIceCandidate(ice)).catch(e => console.warn(e));
+                        }
+                    }
+                    else if (signalType === "answer") {
+                        if (pc.signalingState === "have-local-offer") {
+                            await pc.setRemoteDescription(new RTCSessionDescription(data));
+                            while (iceQueue.length > 0) {
+                                const ice = iceQueue.shift();
+                                if (ice) await pc.addIceCandidate(new RTCIceCandidate(ice)).catch(e => console.warn(e));
+                            }
+                        }
+                    }
+                    else if (signalType === "ice") {
+                        const candidate = new RTCIceCandidate(data);
+                        if (pc.remoteDescription) {
+                            await pc.addIceCandidate(candidate).catch(e => console.warn("ICE error", e));
+                        } else {
+                            iceQueue.push(data);
+                        }
+                    }
+                } catch (err) {
+                    console.error(`Błąd przetwarzania sygnału ${signalType} od ${senderUuid}:`, err);
+                }
             }
-        };
+        } finally {
+            // ZDEJMUJEMY BLOKADĘ bez względu na to czy wystąpił błąd
+            isProcessingRef.current = false;
+        }
+    }, [isMediaReady, localUserUuid, createPeer, onSendSignal]);
 
-        processSignal();
-    }, [incomingSignal, localStream, localUserUuid, createPeerConnection, onSendSignal]);
+    // Dodawanie do kolejki
+    useImperativeHandle(ref, () => ({
+        receiveSignal: (signal: WebRTCSignalPayload) => {
+            if (signal.targetUuid !== localUserUuid) return;
 
+            // Wrzucamy sygnał bezpośrednio do referencji kolejki
+            signalQueueRef.current.push(signal);
+            // I odpalamy procesor
+            processSignalQueue();
+        }
+    }), [localUserUuid, processSignalQueue]);
+
+    // 5. Zwracany UI
     return (
-        <div className="flex flex-wrap gap-2 p-2 bg-slate-900 rounded-lg shadow-md m-2">
-            <div className="relative w-48 h-36 bg-black rounded border border-blue-500 overflow-hidden">
-                <video
-                    ref={localVideoRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                />
-                <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1 rounded">
-                    you
-                </span>
-                <div className="absolute bottom-1 right-1 flex gap-1">
-                    <button
-                        onClick={toggleLocalAudio}
-                        className={`text-xs px-1.5 py-0.5 rounded text-white ${isAudioEnabled ? "bg-blue-600/80" : "bg-red-600/80"}`}
-                    >
-                        {isAudioEnabled ? "Mute" : "Unmute"}
-                    </button>
-                    <button
-                        onClick={toggleLocalVideo}
-                        className={`text-xs px-1.5 py-0.5 rounded text-white ${isVideoEnabled ? "bg-blue-600/80" : "bg-red-600/80"}`}
-                    >
-                        {isVideoEnabled ? "Cam Off" : "Cam On"}
-                    </button>
-                </div>
-            </div>
-
-            {Object.entries(remoteStreams).length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                    {Object.entries(remoteStreams).map(([uuid, stream]) => (
-                        <RemoteVideo
-                            key={uuid}
-                            stream={stream}
-                            user={users.find((u) => u.uuid === uuid)}
-                            isMuted={!!mutedRemotes[uuid]}
-                            onToggleMute={() => toggleRemoteMute(uuid)}
-                        />
-                    ))}
+        <div className="w-full flex flex-col space-y-4">
+            {errorMsg && (
+                <div className="p-3 bg-red-900/50 border border-red-500 text-red-200 text-sm rounded-lg">
+                    {errorMsg}
                 </div>
             )}
-        </div>
-    );
-};
 
-const RemoteVideo: React.FC<{
-    stream: MediaStream;
-    user?: RoomUser;
-    isMuted: boolean;
-    onToggleMute: () => void;
-}> = ({ stream, user, isMuted, onToggleMute }) => {
-    const ref = useRef<HTMLVideoElement>(null);
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <VideoPlayer stream={localStreamDisplay} muted={true} label="You" />
 
-    useEffect(() => {
-        if (ref.current) {
-            ref.current.srcObject = stream;
-        }
-    }, [stream]);
-
-    return (
-        <div className="relative w-48 h-36 bg-black rounded border border-blue-500 overflow-hidden">
-            <video
-                ref={ref}
-                autoPlay
-                playsInline
-                muted={isMuted}
-                className="w-full h-full object-cover"
-            />
-            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-1 rounded">
-                {user ? user.name.slice(0, 16) : "user"}
-            </span>
-            <div className="absolute bottom-1 right-1">
-                <button
-                    onClick={onToggleMute}
-                    className={`text-xs px-1.5 py-0.5 rounded text-white ${!isMuted ? "bg-blue-600/80" : "bg-red-600/80"}`}
-                >
-                    {isMuted ? "Unmute" : "Mute"}
-                </button>
+                {Object.entries(remoteStreams).map(([uuid, stream]) => {
+                    const userMeta = users.find(u => u.uuid === uuid);
+                    const displayName = userMeta ? userMeta.name : `Gość (${uuid.substring(0, 4)})`;
+                    return <VideoPlayer key={uuid} stream={stream} label={displayName} />;
+                })}
             </div>
         </div>
     );
-};
+});

@@ -9,10 +9,10 @@ import (
 )
 
 const (
-	pingPeriod     = 20 * time.Second
-	writeWait      = 10 * time.Second
-	pongWait       = 25 * time.Second
-	maxMessageSize = 512 * 1024
+	pingPeriod     = 30 * time.Second
+	writeWait      = 60 * time.Second
+	pongWait       = 45 * time.Second
+	maxMessageSize = 1024 * 1024
 )
 
 type Client struct {
@@ -27,7 +27,7 @@ func (c *Client) Send(msg json.RawMessage) {
 }
 
 func NewClient(conn *websocket.Conn, wreq *ward.Request) *Client {
-	return &Client{conn: conn, sendCh: make(chan json.RawMessage, 4), Request: wreq}
+	return &Client{conn: conn, sendCh: make(chan json.RawMessage, 10), Request: wreq}
 }
 
 func (c *Client) readPump(r *Channel) {

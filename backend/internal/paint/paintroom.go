@@ -60,6 +60,7 @@ func (p *PaintRoom) RegisterHandlers() {
 	p.Channel.RegisterLeaveHandler(p.handleLeave)
 
 	p.Channel.RegisterEventHandler("canvas_pixel_update", p.handlePixelUpdate)
+	p.Channel.RegisterEventHandler("canvas_get_all", p.handleGetAllCanvas)
 	p.Channel.RegisterEventHandler("chat_message", p.handleChatMessage)
 	p.Channel.RegisterEventHandler("webrtc_signal", p.handleSignal)
 
@@ -95,9 +96,9 @@ func (p *PaintRoom) Log(v ...any) {
 func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 	go func() {
 		p.Log("is listening")
-		streamTicker := time.NewTicker(100 * time.Millisecond)
-		saveTicker := time.NewTicker(5000 * time.Millisecond)
-		syncTicker := time.NewTicker(1000 * 10 * time.Millisecond)
+		streamTicker := time.NewTicker(500 * time.Millisecond)
+		saveTicker := time.NewTicker(1000 * 3 * time.Millisecond)
+		syncTicker := time.NewTicker(1000 * 20 * time.Millisecond)
 		defer func() {
 			streamTicker.Stop()
 			saveTicker.Stop()
@@ -109,7 +110,7 @@ func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 			select {
 			case <-streamTicker.C:
 				go func() {
-					p.cMu.Lock()
+					p.cMu.RLock()
 					if len(p.streamBuf) > 0 {
 						event := wardsocket.ByteEvent{
 							Type:    "canvas_pixel_update",
@@ -122,7 +123,7 @@ func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 						}
 						p.streamBuf = p.streamBuf[:0]
 					}
-					p.cMu.Unlock()
+					p.cMu.RUnlock()
 				}()
 			case <-saveTicker.C:
 				go func() {
@@ -145,11 +146,13 @@ func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 				}()
 			case <-syncTicker.C:
 				if p.cfg.IsTemporary {
-					p.closeIfEmpty()
+					go p.closeIfEmpty()
 				}
+				p.uMu.RLock()
+				p.BroadcastUserList()
+				p.uMu.RUnlock()
 
 			case <-ctx.Done():
-				log.Println("context done")
 				return
 			}
 

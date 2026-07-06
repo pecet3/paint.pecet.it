@@ -38,7 +38,8 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
 
     const drawText = (ctx: CanvasRenderingContext2D, x: number, y: number, text: string, c: string, size: number) => {
         ctx.fillStyle = c;
-        ctx.font = `${size}px Arial`;
+        ctx.font = `italic small-caps bold ${size}px 'Courier New', monospace`
+
         ctx.fillText(text, x, y);
     };
 
