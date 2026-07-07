@@ -20,6 +20,7 @@ export const Room: React.FC = () => {
 
   const [isJoined, setIsJoined] = useState(false);
   const [isWebRTC, setIsWebRTC] = useState(false)
+  const [reconnectCounter, setReconnectCounter] = useState(0)
 
   useEffect(() => {
     ws.current = new WebSocket("/api/rooms/" + roomName);
@@ -57,19 +58,26 @@ export const Room: React.FC = () => {
     };
 
     ws.current.onclose = (evt: CloseEvent) => {
-      console.log(evt);
-      navigate("/");
-    };
+      if (reconnectCounter < 5) {
+        console.log("ws conn closed, reconnecting: ", reconnectCounter)
+        ws.current = new WebSocket("/api/rooms/" + roomName);
+        setReconnectCounter(reconnectCounter + 1)
+      } else {
+        navigate("/");
+      }
 
+    }
     return () => {
       ws.current?.close();
     };
   }, [roomName, navigate]);
 
   useEffect(() => {
-    if (isJoined) handleGetAllCanvas();
+    if (isJoined) {
+      handleGetAllCanvas();
+      setIsWebRTC(true)
+    }
   }, [isJoined]);
-
 
   const handleSendChatMessage = (msg: string) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -146,8 +154,8 @@ export const Room: React.FC = () => {
             incomingPixels={incomingPixels}
           />}
 
-        <div className="flex flex-col items-center m-auto w-full justify-between">
-          {isJoined && isWebRTC ?
+        <div className="flex flex-col items-center m-auto h-full w-full justify-between">
+          {isWebRTC ?
             (
               <>
                 <WebRTCManager
@@ -161,7 +169,7 @@ export const Room: React.FC = () => {
                 }}>Disconnect</button>
               </>
             )
-            :
+            : isJoined &&
             <button className=" btn bg-lime-700 text-xs" onClick={() => {
               setIsWebRTC(true)
             }}>Connect</button>}

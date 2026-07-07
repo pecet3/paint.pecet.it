@@ -58,8 +58,8 @@ export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage, onKi
                 <div className="flex flex-col gap-2 overflow-y-auto">
                     {users.map((user) => (
                         <div key={user.uuid} className="flex items-center gap-0.5 text-xs">
-                            <span className={`w-2.5 h-2.5 rounded-full ${user.is_connected ? "bg-green-500" : "bg-gray-400"}`} />
-                            <span className="truncate">{user.name}</span>
+                            <span className={`w-1 h-1 rounded-full ${user.is_connected ? "bg-green-500" : "bg-gray-400"}`} />
+                            <span className="truncate">{user.name.slice(0, 16)}</span>
                             {user.is_operator && <span className="text-[8px] bg-blue-100 text-blue-600 px-1 rounded">OP</span>}
                             {isOp && <button onClick={() => onKick(user.uuid)} className="cursor-pointer">kick</button>}
                         </div>

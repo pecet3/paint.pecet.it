@@ -43,7 +43,7 @@ function AppContent() {
                         </>
                     </ProtectedRoute>
                 } />
-                <Route path="/rooms/:roomName" element={
+                <Route path="/room/:roomName" element={
                     <ProtectedRoute>
                         <>
                             <Room />

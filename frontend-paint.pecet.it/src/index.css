@@ -107,7 +107,7 @@ code {
 }
 
 .btn {
-  @apply text-white p-2 font-bold border rounded-lg disabled:cursor-not-allowed cursor-pointer
+  @apply text-white p-1 font-bold border rounded-lg disabled:cursor-not-allowed cursor-pointer
 }
 
 .tile {
