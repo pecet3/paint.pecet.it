@@ -1,6 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
 import type { Pixel } from '../../types';
-import { paintDataSendTimestampMs } from '../../config';
 
 interface PaintCanvasProps {
     onSendPixelUpdate: (pixels: Pixel[]) => void;
