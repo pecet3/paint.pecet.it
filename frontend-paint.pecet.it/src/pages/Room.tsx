@@ -29,7 +29,7 @@ export const Room: React.FC = () => {
 
       switch (data.type) {
         case "canvas_pixel_update":
-          setIncomingPixels(decodeBase64ToPixels(data.payload));
+          setIncomingPixels(decodeBase64ToPixels(data.payload))
           break;
         case "chat_message":
           setChatMessages(prev => [...prev, data.payload as ChatMessage]);
@@ -133,7 +133,7 @@ export const Room: React.FC = () => {
 
   return (
     <div className="m-2 flex flex-col items-center gap-2">
-      <div className="flex gap-1 items-center justify-center w-full flex-col lg:flex-row">
+      <div className="flex gap-1 items-center justify-center w-full flex-col xl:flex-row">
 
         {isWebRTC
           ? <PaintCanvas
@@ -149,16 +149,22 @@ export const Room: React.FC = () => {
         <div className="flex flex-col items-center m-auto w-full justify-between">
           {isJoined && isWebRTC ?
             (
-              <WebRTCManager
-                ref={webrtcRef}
-                users={users}
-                onSendSignal={handleSendSignal}
-                onDataReceived={receiveWebRTCData}
-              />
+              <>
+                <WebRTCManager
+                  ref={webrtcRef}
+                  users={users}
+                  onSendSignal={handleSendSignal}
+                  onDataReceived={receiveWebRTCData}
+                />
+                <button className=" btn bg-red-800 text-xs" onClick={() => {
+                  setIsWebRTC(false)
+                }}>Disconnect</button>
+              </>
             )
-            : <button className="btn bg-black" onClick={() => {
+            :
+            <button className=" btn bg-lime-700 text-xs" onClick={() => {
               setIsWebRTC(true)
-            }}>Connect to Video Call</button>}
+            }}>Connect</button>}
           {serverMessage && (
             <div className="flex text-xl justify-center">
               {serverMessage.message}

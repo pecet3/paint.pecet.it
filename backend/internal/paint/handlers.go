@@ -154,10 +154,12 @@ func (p *PaintRoom) handlePixelUpdate(ctx context.Context, evt *wardsocket.Event
 	if len(data) == 0 || len(data)%8 != 0 {
 		return
 	}
+	out := []byte(`{"type":"canvas_pixel_update","payload":` + string(evt.Payload) + `}`)
+	p.Channel.Broadcast(out, evt.Client)
+
 	p.cMu.Lock()
 	defer p.cMu.Unlock()
-	p.streamBuf = append(p.streamBuf, data...)
-	p.saveBuf = append(p.saveBuf, p.streamBuf...)
+	p.saveBuf = append(p.saveBuf, data...)
 }
 
 func (p *PaintRoom) handleSignal(ctx context.Context, e *wardsocket.Event) {

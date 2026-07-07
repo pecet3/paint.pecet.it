@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"slices"
 	"sync"
 	"sync/atomic"
 )
@@ -16,11 +17,9 @@ type Channel struct {
 	clients map[*Client]bool
 	cMu     sync.RWMutex
 
-	broadcastCh chan json.RawMessage
-	streamCh    chan json.RawMessage
-	joinCh      chan *Client
-	leaveCh     chan *Client
-	eventCh     chan *Event
+	joinCh  chan *Client
+	leaveCh chan *Client
+	eventCh chan *Event
 
 	eventHandlers map[string]func(context.Context, *Event)
 
@@ -33,13 +32,11 @@ type Channel struct {
 
 func NewChannel() *Channel {
 	r := &Channel{
-		ID:          atomic.AddUint64(&channelCounter, 1),
-		clients:     make(map[*Client]bool),
-		broadcastCh: make(chan json.RawMessage, 10),
-		joinCh:      make(chan *Client, 10),
-		leaveCh:     make(chan *Client, 10),
-		eventCh:     make(chan *Event, 10),
-		streamCh:    make(chan json.RawMessage, 10),
+		ID:      atomic.AddUint64(&channelCounter, 1),
+		clients: make(map[*Client]bool),
+		joinCh:  make(chan *Client, 10),
+		leaveCh: make(chan *Client, 10),
+		eventCh: make(chan *Event, 10),
 
 		eventHandlers: make(map[string]func(context.Context, *Event)),
 		joinHandlers:  []func(context.Context, *Client){},
@@ -56,12 +53,22 @@ func (r *Channel) WithCancelContext(ctx context.Context) (*Channel, context.Cont
 	return r, ctx
 }
 
-func (r *Channel) Broadcast(msg json.RawMessage) {
-	r.broadcastCh <- msg
+func (r *Channel) Broadcast(msg json.RawMessage, omitClients ...*Client) {
+	r.cMu.RLock()
+	defer r.cMu.RUnlock()
+	if len(omitClients) > 0 {
+		for client := range r.clients {
+			if !slices.Contains(omitClients, client) {
+				client.sendCh <- msg
+			}
+		}
+	} else {
+		for client := range r.clients {
+			client.sendCh <- msg
+		}
+	}
 }
-func (r *Channel) BroadcastStream(msg json.RawMessage) {
-	r.streamCh <- msg
-}
+
 func (r *Channel) LeaveClient(client *Client) {
 	r.leaveCh <- client
 }
@@ -125,20 +132,6 @@ func (r *Channel) Run(ctx context.Context) {
 					close(client.sendCh)
 				}
 				r.cMu.Unlock()
-
-			case msg := <-r.broadcastCh:
-				r.cMu.RLock()
-				for client := range r.clients {
-					client.sendCh <- msg
-				}
-				r.cMu.RUnlock()
-			case msg := <-r.streamCh:
-				r.cMu.RLock()
-				for client := range r.clients {
-					client.sendCh <- msg
-				}
-				r.cMu.RUnlock()
-
 			case msg := <-r.eventCh:
 				if handler, ok := r.eventHandlers[msg.Type]; ok {
 					go handler(ctx, msg)
