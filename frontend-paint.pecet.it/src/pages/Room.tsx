@@ -68,10 +68,45 @@ export const Room: React.FC = () => {
     if (isJoined) handleGetAllCanvas();
   }, [isJoined]);
 
+  // 
+  const handleReceiveWebRTCData = (base64Payload: string) => {
+    setIncomingPixels(decodeBase64ToPixels(base64Payload));
+  };
+  //
+  const [isWebRTC, setIsWebRTC] = useState(false)
+  const [pixelSendIntervalMs, setPixelSendIntervalMs] = useState(500)
+  let outPixelsWS = ""
+  let invokeCounter = 0
   const handleSendPixelUpdate = (pixels: Pixel[]) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({ type: "canvas_pixel_update", payload: encodePixelsToBase64(pixels) }));
+    const base64Payload = encodePixelsToBase64(pixels);
+
+    if (isWebRTC) {
+      if (webrtcRef.current) {
+        webrtcRef.current.broadcastData(base64Payload);
+      }
+      outPixelsWS = outPixelsWS + base64Payload
+      invokeCounter++
+      console.log(invokeCounter)
+      if (invokeCounter < 10) return
+      invokeCounter = 0
+      outPixelsWS = ""
+      console.log(invokeCounter)
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify({
+          type: "canvas_pixel_update",
+          payload: outPixelsWS
+        }));
+      }
+    } else {
+      if (ws.current?.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify({
+          type: "canvas_pixel_update",
+          payload: base64Payload
+        }));
+      }
     }
+
+
   };
 
   const handleSendChatMessage = (msg: string) => {
@@ -97,8 +132,7 @@ export const Room: React.FC = () => {
       ws.current.send(JSON.stringify({ type: "canvas_get_all", payload: "" }));
     }
   };
-  const [isWebRTC, setIsWebRTC] = useState(false)
-  const [pixelSendIntervalMs, setPixelSendIntervalMs] = useState(500)
+
   return (
     <div className="m-2 flex flex-col items-center gap-2">
       <div className="flex gap-1 items-center justify-center w-full flex-col lg:flex-row">
@@ -114,6 +148,7 @@ export const Room: React.FC = () => {
                 ref={webrtcRef}
                 users={users}
                 onSendSignal={handleSendSignal}
+                onDataReceived={handleReceiveWebRTCData}
               />
             )
             : <button className="btn bg-black" onClick={() => {

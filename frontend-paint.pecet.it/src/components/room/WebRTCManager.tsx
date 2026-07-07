@@ -118,6 +118,30 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
         const peerData: PeerData = { pc, iceQueue: [] };
         peersRef.current.set(targetUuid, peerData);
 
+        const setupDataChannel = (channel: RTCDataChannel) => {
+            channel.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === "pixel_update" && onDataReceived) {
+                        onDataReceived(data.payload);
+                    }
+                } catch (e) {
+                    console.error("Błąd parsowania danych WebRTC", e);
+                }
+            };
+        };
+
+        // Tworzymy kanał lokalnie (jako strona inicjująca połączenie)
+        const dataChannel = pc.createDataChannel("canvas_data");
+        setupDataChannel(dataChannel);
+        peerData.dataChannel = dataChannel;
+
+        // Odbieramy kanał utworzony przez drugą stronę
+        pc.ondatachannel = (event) => {
+            peerData.dataChannel = event.channel;
+            setupDataChannel(event.channel);
+        };
+
         if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach(track => {
                 pc.addTrack(track, localStreamRef.current!);
@@ -261,6 +285,14 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
             signalQueueRef.current.push(signal);
             // I odpalamy procesor
             processSignalQueue();
+        },
+        broadcastData: (payload: string) => {
+            peersRef.current.forEach((peerData) => {
+                const dc = peerData.dataChannel;
+                if (dc && dc.readyState === "open") {
+                    dc.send(JSON.stringify({ type: "pixel_update", payload }));
+                }
+            });
         }
     }), [localUserUuid, processSignalQueue]);
 
