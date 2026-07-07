@@ -14,7 +14,7 @@ type EnvVars struct {
 
 var Var EnvVars
 
-func Init() {
+func init() {
 	if err := envvar.Parse(&Var); err != nil {
 		log.Fatal(err)
 	}

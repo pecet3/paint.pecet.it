@@ -115,7 +115,7 @@ export const Login = () => {
                 {isPassword ? <LoginForm isPassword={true} /> : <LoginForm />}
 
             </div>
-            <button onClick={() => setIsPassword(!isPassword)} className="">
+            <button onClick={() => setIsPassword(!isPassword)} className="text-gray-600 text-sm cursor-pointer">
                 {isPassword ? 'Normal Login' : 'Admin Login'}
             </button>
         </>

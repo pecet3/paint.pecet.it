@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { PaintCanvas } from "../components/room/PaintCanvas2";
+import { PaintCanvas } from "../components/room/PaintCanvas";
 import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/room/pixel";
 import type { ChatMessage, Pixel, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
 import { Chat } from "../components/room/Chat";
@@ -74,40 +74,27 @@ export const Room: React.FC = () => {
   };
   //
   const [isWebRTC, setIsWebRTC] = useState(false)
-  const [pixelSendIntervalMs, setPixelSendIntervalMs] = useState(500)
-  let outPixelsWS = ""
-  let invokeCounter = 0
-  const handleSendPixelUpdate = (pixels: Pixel[]) => {
-    const base64Payload = encodePixelsToBase64(pixels);
 
+  const handleSendPixelUpdateRTC = (pixels: Pixel[]) => {
+    const base64Payload = encodePixelsToBase64(pixels);
     if (isWebRTC) {
       if (webrtcRef.current) {
         webrtcRef.current.broadcastData(base64Payload);
       }
-      outPixelsWS = outPixelsWS + base64Payload
-      invokeCounter++
-      console.log(invokeCounter)
-      if (invokeCounter < 10) return
-      invokeCounter = 0
-      outPixelsWS = ""
-      console.log(invokeCounter)
-      if (ws.current?.readyState === WebSocket.OPEN) {
-        ws.current.send(JSON.stringify({
-          type: "canvas_pixel_update",
-          payload: outPixelsWS
-        }));
-      }
-    } else {
-      if (ws.current?.readyState === WebSocket.OPEN) {
-        ws.current.send(JSON.stringify({
-          type: "canvas_pixel_update",
-          payload: base64Payload
-        }));
-      }
-    }
+    };
+
+  }
+  const handleSendPixelUpdateWS = (pixels: Pixel[]) => {
+    const base64Payload = encodePixelsToBase64(pixels);
+    if (ws.current?.readyState === WebSocket.OPEN)
+      ws.current.send(JSON.stringify({
+        type: "canvas_pixel_update",
+        payload: base64Payload
+      }));
+
+  }
 
 
-  };
 
   const handleSendChatMessage = (msg: string) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -136,11 +123,18 @@ export const Room: React.FC = () => {
   return (
     <div className="m-2 flex flex-col items-center gap-2">
       <div className="flex gap-1 items-center justify-center w-full flex-col lg:flex-row">
-        <PaintCanvas
-          onSendPixelUpdate={handleSendPixelUpdate}
-          incomingPixels={incomingPixels}
-          pixelSendIntervalMs={pixelSendIntervalMs}
-        />
+
+        {isWebRTC
+          ? <PaintCanvas
+            onSendPixelUpdate={handleSendPixelUpdateWS}
+            incomingPixels={incomingPixels}
+            onSendPixelUpdateRTC={handleSendPixelUpdateRTC}
+          />
+          : <PaintCanvas
+            onSendPixelUpdate={handleSendPixelUpdateWS}
+            incomingPixels={incomingPixels}
+          />}
+
         <div className="flex flex-col items-center m-auto w-full justify-between">
           {isJoined && isWebRTC ?
             (
@@ -153,7 +147,6 @@ export const Room: React.FC = () => {
             )
             : <button className="btn bg-black" onClick={() => {
               setIsWebRTC(true)
-              setPixelSendIntervalMs(50)
             }}>Connect to Video Call</button>}
           {serverMessage && (
             <div className="flex text-xl justify-center">

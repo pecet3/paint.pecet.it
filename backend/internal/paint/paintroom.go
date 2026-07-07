@@ -148,9 +148,6 @@ func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 				if p.cfg.IsTemporary {
 					go p.closeIfEmpty()
 				}
-				p.uMu.RLock()
-				p.BroadcastUserList()
-				p.uMu.RUnlock()
 
 			case <-ctx.Done():
 				return

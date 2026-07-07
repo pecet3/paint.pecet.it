@@ -3,16 +3,18 @@ import type { Pixel } from '../../types';
 
 interface PaintCanvasProps {
     onSendPixelUpdate: (pixels: Pixel[]) => void;
+    onSendPixelUpdateRTC?: (pixels: Pixel[]) => void;
     incomingPixels: Pixel[] | null;
 }
 
 export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     onSendPixelUpdate,
     incomingPixels,
+    onSendPixelUpdateRTC,
 }) => {
     const mainCanvasRef = useRef<HTMLCanvasElement>(null);
     const bufferCanvasRef = useRef<HTMLCanvasElement>(null);
-
+    const bufferCanvasRTCRef = useRef<HTMLCanvasElement>(null);
     const [tool, setTool] = useState<'draw' | 'text'>('draw');
     const [textValue, setTextValue] = useState<string>('Hello world');
     const [fontSize, setFontSize] = useState<number>(24);
@@ -54,10 +56,55 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
         }
     }, [incomingPixels]);
 
+    useEffect(() => {
+        if (onSendPixelUpdateRTC !== undefined) {
+            const interval = setInterval(() => {
+                const bufferCanvas = bufferCanvasRTCRef.current;
+                if (!bufferCanvas) return;
+
+                const ctx = bufferCanvas.getContext('2d', { willReadFrequently: true });
+                if (!ctx) return;
+
+                const { width, height } = bufferCanvas;
+                const imageData = ctx.getImageData(0, 0, width, height);
+                const data = imageData.data;
+                const changedPixels: Pixel[] = [];
+
+                for (let i = 0; i < data.length; i += 4) {
+                    const alpha = data[i + 3];
+                    if (alpha > 0) {
+                        const r = data[i];
+                        const g = data[i + 1];
+                        const b = data[i + 2];
+
+                        const hexColor = '#' +
+                            r.toString(16).padStart(2, '0') +
+                            g.toString(16).padStart(2, '0') +
+                            b.toString(16).padStart(2, '0') +
+                            alpha.toString(16).padStart(2, '0');
+
+                        const pixelIndex = i / 4;
+                        const x = pixelIndex % width;
+                        const y = Math.floor(pixelIndex / width);
+                        changedPixels.push({ x, y, color: hexColor });
+                    }
+                }
+                if (changedPixels.length > 0) {
+                    onSendPixelUpdateRTC(changedPixels);
+                    ctx.clearRect(0, 0, width, height);
+                }
+            }, 30);
+
+            return () => clearInterval(interval);
+        }
+
+    }, [onSendPixelUpdateRTC]);
+
     const handleMouseEvent = (e: React.MouseEvent<HTMLCanvasElement>, action: 'start' | 'draw' | 'end') => {
         const mainCanvas = mainCanvasRef.current;
         const bufferCanvas = bufferCanvasRef.current;
-        if (!mainCanvas || !bufferCanvas) return;
+        const bufferCanvasRTC = bufferCanvasRTCRef.current;
+        if (!mainCanvas || !bufferCanvas || !bufferCanvasRTC) return;
 
         const rect = mainCanvas.getBoundingClientRect();
         const x = Math.round(e.clientX - rect.left);
@@ -67,7 +114,8 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
 
         const mainCtx = mainCanvas.getContext('2d');
         const bufferCtx = bufferCanvas.getContext('2d', { willReadFrequently: true });
-        if (!mainCtx || !bufferCtx) return;
+        const bufferRTCCtx = bufferCanvasRTC.getContext('2d', { willReadFrequently: true });
+        if (!mainCtx || !bufferCtx || !bufferRTCCtx) return;
 
         if (action === 'start') {
             if (tool === 'draw') {
@@ -75,9 +123,11 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                 lastPos.current = { x, y };
                 drawLine(mainCtx, x, y, x, y, color, brushSize);
                 drawLine(bufferCtx, x, y, x, y, color, brushSize);
+                drawLine(bufferRTCCtx, x, y, x, y, color, brushSize);
             } else if (tool === 'text') {
                 drawText(mainCtx, x, y, textValue, color, fontSize);
                 drawText(bufferCtx, x, y, textValue, color, fontSize);
+                drawText(bufferRTCCtx, x, y, textValue, color, fontSize);
             }
             return;
         }
@@ -120,6 +170,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
         if (action === 'draw' && isDrawing && lastPos.current && tool === 'draw') {
             drawLine(mainCtx, lastPos.current.x, lastPos.current.y, x, y, color, brushSize);
             drawLine(bufferCtx, lastPos.current.x, lastPos.current.y, x, y, color, brushSize);
+            drawLine(bufferRTCCtx, lastPos.current.x, lastPos.current.y, x, y, color, brushSize);
             lastPos.current = { x, y };
         }
     };
@@ -183,6 +234,12 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                 />
                 <canvas
                     ref={bufferCanvasRef}
+                    width={800}
+                    height={600}
+                    className="hidden"
+                />
+                <canvas
+                    ref={bufferCanvasRTCRef}
                     width={800}
                     height={600}
                     className="hidden"

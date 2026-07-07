@@ -185,14 +185,14 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
             if (u.uuid !== localUserUuid && u.is_connected && !peersRef.current.has(u.uuid)) {
                 const peerData = createPeer(u.uuid);
 
-                if (localUserUuid > u.uuid) {
-                    peerData.pc.createOffer()
-                        .then(offer => peerData.pc.setLocalDescription(offer))
-                        .then(() => {
-                            onSendSignal({ targetUuid: u.uuid, senderUuid: localUserUuid, signalType: "offer", data: peerData.pc.localDescription });
-                        })
-                        .catch(err => console.error("Błąd tworzenia oferty dla", u.uuid, err));
-                }
+
+                peerData.pc.createOffer()
+                    .then(offer => peerData.pc.setLocalDescription(offer))
+                    .then(() => {
+                        onSendSignal({ targetUuid: u.uuid, senderUuid: localUserUuid, signalType: "offer", data: peerData.pc.localDescription });
+                    })
+                    .catch(err => console.error("Błąd tworzenia oferty dla", u.uuid, err));
+
             }
         });
 

@@ -189,7 +189,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                     ref={mainCanvasRef}
                     width={800}
                     height={600}
-                    className={` top-0 left-0 border-2 border-gray-800 bg-white ${tool === 'text' ? 'cursor-text' : 'cursor-crosshair'}`}
+                    className={` top-0 left-0 border-2 border-gray-800 bg-white ${tool === 'text' ? 'cursor-grab' : 'cursor-crosshair'}`}
                     onMouseDown={(e) => handleMouseEvent(e, 'start')}
                     onMouseMove={(e) => handleMouseEvent(e, 'draw')}
                     onMouseUp={(e) => handleMouseEvent(e, 'end')}
