@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PaintCanvas } from "../components/room/PaintCanvas";
 import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/room/pixel";
-import type { ChatMessage, Pixel, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
+import type { ChatMessage, Event, Pixel, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
 import { Chat } from "../components/room/Chat";
 import { WebRTCManager, type WebRTCManagerHandle } from "../components/room/WebRTCManager";
 import { useNavigate, useParams } from "react-router";
@@ -17,7 +17,9 @@ export const Room: React.FC = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [users, setUsers] = useState<RoomUser[]>([]);
   const [serverMessage, setServerMessage] = useState<ServerMessage | null>(null);
+
   const [isJoined, setIsJoined] = useState(false);
+  const [isWebRTC, setIsWebRTC] = useState(false)
 
   useEffect(() => {
     ws.current = new WebSocket("/api/rooms/" + roomName);
@@ -68,33 +70,6 @@ export const Room: React.FC = () => {
     if (isJoined) handleGetAllCanvas();
   }, [isJoined]);
 
-  // 
-  const handleReceiveWebRTCData = (base64Payload: string) => {
-    setIncomingPixels(decodeBase64ToPixels(base64Payload));
-  };
-  //
-  const [isWebRTC, setIsWebRTC] = useState(false)
-
-  const handleSendPixelUpdateRTC = (pixels: Pixel[]) => {
-    const base64Payload = encodePixelsToBase64(pixels);
-    if (isWebRTC) {
-      if (webrtcRef.current) {
-        webrtcRef.current.broadcastData(base64Payload);
-      }
-    };
-
-  }
-  const handleSendPixelUpdateWS = (pixels: Pixel[]) => {
-    const base64Payload = encodePixelsToBase64(pixels);
-    if (ws.current?.readyState === WebSocket.OPEN)
-      ws.current.send(JSON.stringify({
-        type: "canvas_pixel_update",
-        payload: base64Payload
-      }));
-
-  }
-
-
 
   const handleSendChatMessage = (msg: string) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -108,17 +83,53 @@ export const Room: React.FC = () => {
     }
   };
 
-  const handleSendSignal = (payload: WebRTCSignalPayload) => {
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({ type: "webrtc_signal", payload }));
-    }
-  };
-
   const handleGetAllCanvas = () => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type: "canvas_get_all", payload: "" }));
     }
   };
+
+  const handleSendSignal = (payload: WebRTCSignalPayload) => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ type: "webrtc_signal", payload }));
+    }
+  };
+  const handleSendPixelUpdateWS = (pixels: Pixel[]) => {
+    const base64Payload = encodePixelsToBase64(pixels);
+    if (ws.current?.readyState === WebSocket.OPEN)
+      ws.current.send(JSON.stringify({
+        type: "canvas_pixel_update",
+        payload: base64Payload
+      }));
+  }
+  /*
+
+    WebRTC
+
+  */
+  const receiveWebRTCData = (event: Event) => {
+    switch (event.type) {
+      case "canvas_pixel_update":
+        setIncomingPixels(decodeBase64ToPixels(event.payload));
+        break;
+      default:
+        console.warn("unhandled webRTC event type: ", event.type);
+    }
+  };
+
+  const handleSendPixelUpdateRTC = (pixels: Pixel[]) => {
+    const base64Payload = encodePixelsToBase64(pixels);
+    if (isWebRTC) {
+      if (webrtcRef.current) {
+        webrtcRef.current.broadcastData({
+          type: "canvas_pixel_update",
+          payload: base64Payload
+        });
+      }
+    };
+
+  }
+
 
   return (
     <div className="m-2 flex flex-col items-center gap-2">
@@ -142,7 +153,7 @@ export const Room: React.FC = () => {
                 ref={webrtcRef}
                 users={users}
                 onSendSignal={handleSendSignal}
-                onDataReceived={handleReceiveWebRTCData}
+                onDataReceived={receiveWebRTCData}
               />
             )
             : <button className="btn bg-black" onClick={() => {

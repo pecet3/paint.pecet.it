@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import type { RoomUser, WebRTCSignalPayload } from "../../types";
+import type { Event, RoomUser, WebRTCSignalPayload } from "../../types";
 import { useStore } from "../../Store";
 
 const STUN_SERVERS = {
@@ -12,11 +12,11 @@ const STUN_SERVERS = {
 interface WebRTCManagerProps {
     users: RoomUser[];
     onSendSignal: (payload: WebRTCSignalPayload) => void;
-    onDataReceived?: (payload: string) => void;
+    onDataReceived?: (payload: Event) => void;
 }
 export interface WebRTCManagerHandle {
     receiveSignal: (signal: WebRTCSignalPayload) => void;
-    broadcastData: (payload: string) => void;
+    broadcastData: (payload: Event) => void;
 }
 interface PeerData {
     pc: RTCPeerConnection;
@@ -99,7 +99,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
                 }
             } catch (err) {
                 console.error("Błąd kamery/mikrofonu:", err);
-                setErrorMsg("Błąd dostępu do kamery lub mikrofonu.");
+                setErrorMsg("No access to camera or microphone");
             }
         };
 
@@ -121,9 +121,9 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
         const setupDataChannel = (channel: RTCDataChannel) => {
             channel.onmessage = (event) => {
                 try {
-                    const data = JSON.parse(event.data);
-                    if (data.type === "pixel_update" && onDataReceived) {
-                        onDataReceived(data.payload);
+                    const evt = JSON.parse(event.data);
+                    if (onDataReceived) {
+                        onDataReceived(evt as Event);
                     }
                 } catch (e) {
                     console.error("Błąd parsowania danych WebRTC", e);
@@ -132,7 +132,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
         };
 
         // Tworzymy kanał lokalnie (jako strona inicjująca połączenie)
-        const dataChannel = pc.createDataChannel("canvas_data");
+        const dataChannel = pc.createDataChannel("general_data_channel");
         setupDataChannel(dataChannel);
         peerData.dataChannel = dataChannel;
 
@@ -286,11 +286,11 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
             // I odpalamy procesor
             processSignalQueue();
         },
-        broadcastData: (payload: string) => {
+        broadcastData: (event: Event) => {
             peersRef.current.forEach((peerData) => {
                 const dc = peerData.dataChannel;
                 if (dc && dc.readyState === "open") {
-                    dc.send(JSON.stringify({ type: "pixel_update", payload }));
+                    dc.send(JSON.stringify({ type: event.type, payload: event.payload }));
                 }
             });
         }
