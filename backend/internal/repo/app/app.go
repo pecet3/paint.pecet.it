@@ -6,7 +6,7 @@ import (
 	"paint.pecet.it/internal/paint"
 	"paint.pecet.it/internal/simpleauth"
 	"paint.pecet.it/pkg/ward"
-	"paint.pecet.it/pkg/ward/wardsocket"
+	"paint.pecet.it/pkg/wardsocket"
 )
 
 type App struct {

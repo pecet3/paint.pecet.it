@@ -1,6 +1,7 @@
 package ward
 
 import (
+	"log"
 	"net/http"
 	"sync"
 )
@@ -104,6 +105,7 @@ type Middleware func(Handler) Handler
 type Handler func(wreq *Request)
 
 func (ward *Ward) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Println(1)
 	wreq := newRequest(ward, r)
 	rCtx := SetWardRequest(r, wreq)
 	ward.mux.ServeHTTP(w, rCtx)

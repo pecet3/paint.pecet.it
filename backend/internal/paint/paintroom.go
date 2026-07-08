@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"paint.pecet.it/pkg/ward/wardsocket"
+	"paint.pecet.it/pkg/wardsocket"
 )
 
 const (

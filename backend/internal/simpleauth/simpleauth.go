@@ -2,6 +2,7 @@ package simpleauth
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -116,6 +117,8 @@ func (sa *SimpleAuth) PingHandler(wreq *ward.Request) {
 
 func (sa *SimpleAuth) AuthMiddleware(next ward.Handler) ward.Handler {
 	return func(wreq *ward.Request) {
+		log.Println(12)
+
 		cookie, err := wreq.Http.Cookie("auth-token")
 		if err != nil {
 			http.Error(wreq, "", http.StatusUnauthorized)
@@ -131,32 +134,6 @@ func (sa *SimpleAuth) AuthMiddleware(next ward.Handler) ward.Handler {
 			return
 		}
 
-		wreq.AssignUser(user)
-
-		next(wreq)
-	}
-}
-
-func (sa *SimpleAuth) AuthAdminMiddleware(next ward.Handler) ward.Handler {
-	return func(wreq *ward.Request) {
-		cookie, err := wreq.Http.Cookie("auth-token")
-		if err != nil {
-			http.Error(wreq, "", http.StatusUnauthorized)
-			return
-		}
-
-		sa.mu.RLock()
-		user, exists := sa.users[cookie.Value]
-		sa.mu.RUnlock()
-
-		if !exists {
-			http.Error(wreq, "", http.StatusUnauthorized)
-			return
-		}
-		if !user.IsAdmin {
-			http.Error(wreq, "", http.StatusForbidden)
-			return
-		}
 		wreq.AssignUser(user)
 
 		next(wreq)

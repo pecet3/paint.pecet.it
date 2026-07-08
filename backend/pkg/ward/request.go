@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
-	"time"
 )
 
 type User interface {
@@ -15,30 +14,29 @@ type User interface {
 	Uuid() string
 }
 
+type AuthUser interface {
+	User
+	Email() string
+	Rank() int
+}
+
 type nullUser struct{}
 
 var nUser = &nullUser{}
 
 const (
-	nullUserUuid = "null"
-	nullUserName = "null"
+	null = "null"
 )
 
 func (u *nullUser) Uuid() string {
-	return nullUserUuid
+	return null
 }
 func (u *nullUser) Name() string {
-	return nullUserName
+	return null
 }
 
 type ClientInfo struct {
-	Uuid              string
-	LastReqDuration   time.Duration
-	LastURL           string
-	LastMethod        string
-	LastPath          string
-	ActiveConnections int
-	Ip                string
+	Ip string
 }
 
 type Request struct {

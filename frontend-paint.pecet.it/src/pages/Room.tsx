@@ -1,12 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
-import { PaintCanvas } from "../components/room/PaintCanvas";
-import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/room/pixel";
-import type { ChatMessage, Event, Pixel, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
+import { PaintCanvas } from "../components/paint/PaintCanvas";
+import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/paint/pixel";
+import type { ChatMessage, Event, NoteEvent, Pixel, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
 import { Chat } from "../components/room/Chat";
 import { WebRTCManager, type WebRTCManagerHandle } from "../components/room/WebRTCManager";
 import { useNavigate, useParams } from "react-router";
+import { Synthesizer } from "../components/synth/Synthesizer";
+import { useStore } from "../Store";
 
 export const Room: React.FC = () => {
+  const { user } = useStore()
+
   let { roomName } = useParams();
   const navigate = useNavigate();
 
@@ -115,10 +119,15 @@ export const Room: React.FC = () => {
     WebRTC
 
   */
+
+  const [incomingNote, setIncomingNote] = useState<NoteEvent | null>(null)
   const receiveWebRTCData = (event: Event) => {
     switch (event.type) {
       case "canvas_pixel_update":
         setIncomingPixels(decodeBase64ToPixels(event.payload));
+        break;
+      case "synth_note_update":
+        setIncomingNote(event.payload)
         break;
       default:
         console.warn("unhandled webRTC event type: ", event.type);
@@ -135,9 +144,17 @@ export const Room: React.FC = () => {
         });
       }
     };
-
   }
-
+  const handleSendNoteRTC = (note: NoteEvent) => {
+    if (isWebRTC) {
+      if (webrtcRef.current) {
+        webrtcRef.current.broadcastData({
+          type: "synth_note_update",
+          payload: note,
+        });
+      }
+    };
+  }
 
   return (
     <div className="m-2 flex flex-col items-center gap-2">
@@ -186,6 +203,10 @@ export const Room: React.FC = () => {
           />
         </div>
       </div>
+      <Synthesizer
+        incomingNote={incomingNote}
+        currentUserId={user?.uuid || ""}
+        onSendNote={handleSendNoteRTC} />
     </div>
   );
 };

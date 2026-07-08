@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
-	"paint.pecet.it/pkg/ward/wardsocket"
+	"paint.pecet.it/pkg/wardsocket"
 )
 
 func (p *PaintRoom) broadcastEvent(eventType string, payload any) {

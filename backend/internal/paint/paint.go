@@ -6,7 +6,7 @@ import (
 	"sync"
 
 	"paint.pecet.it/pkg/ward"
-	"paint.pecet.it/pkg/ward/wardsocket"
+	"paint.pecet.it/pkg/wardsocket"
 )
 
 type Paint struct {

@@ -105,7 +105,7 @@ export const Home: React.FC = () => {
           onClick={() => setIsFormVisible(!isFormVisible)}
           className={`btn bg-slate-900`}
         >
-          {isFormVisible ? 'Back to List' : 'Create Room'}
+          {isFormVisible ? 'Back to List' : 'Create'}
         </button>
       </div >
 
