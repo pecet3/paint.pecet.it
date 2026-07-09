@@ -1,33 +1,38 @@
-package ward
+package wardrouter
 
 import (
 	"errors"
+	"log"
 	"net/http"
-	"sync"
 
 	"github.com/go-playground/validator"
 )
 
 var valid = validator.New()
+var mux = http.NewServeMux()
 
 type Ward struct {
-	reqCounter  uint64
-	mux         *http.ServeMux
-	httpClients map[string]*ClientInfo
-	hMu         sync.RWMutex
+	reqCounter uint64
+	mux        *http.ServeMux
+
+	routes map[string]Route
 
 	basePath string
 }
 
 func New() *Ward {
 	return &Ward{
-		mux:         http.NewServeMux(),
-		httpClients: make(map[string]*ClientInfo),
+		mux:    http.NewServeMux(),
+		routes: make(map[string]Route),
 	}
 }
 
-func (w *Ward) NewGroup(basePath string) *Group {
-	return newGroup(w, w.basePath+basePath)
+type Route struct {
+	path        string
+	middlewares Middleware
+	minimalRank int
+	method      string
+	handlers    []Handler
 }
 
 func (ward *Ward) HandleFunc(pattern string, handler func(wreq *Request)) {
@@ -47,8 +52,15 @@ func (ward *Ward) middleware(pattern string, handler func(wreq *Request), mws ..
 	ward.HandleFunc(pattern, handler)
 }
 
-func (ward *Ward) Get(pattern string, handler func(wreq *Request), mws ...Middleware) {
-	ward.middleware("GET "+pattern, handler, mws...)
+func (ward *Ward) Get(path string, handler func(wreq *Request)) *Route {
+	r := Route{
+		path:     path,
+		handlers: make([]Handler, 0),
+		method:   "GET ",
+	}
+
+	ward.routes[r.method+path] = r
+	return &r
 }
 
 func (ward *Ward) Put(pattern string, handler func(wreq *Request), mws ...Middleware) {
@@ -67,7 +79,9 @@ type Middleware func(Handler) Handler
 type Handler func(wreq *Request)
 
 func (ward *Ward) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ward.mux.ServeHTTP(w, r)
+	log.Println(r.URL)
+	log.Println(r.Method)
+	mux.ServeHTTP(w, r)
 }
 
 func MinimalRank(rank int) Middleware {

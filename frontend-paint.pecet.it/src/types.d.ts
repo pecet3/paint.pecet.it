@@ -1,6 +1,7 @@
 export interface User {
     uuid: string;
     name: string;
+    rank: number;
 }
 export type Event = {
     type: string;

@@ -108,7 +108,7 @@ func (r *Channel) Log(v ...any) {
 
 func (r *Channel) Run(ctx context.Context) {
 	go func() {
-		r.Log("is listening")
+		r.Log("is running")
 		for {
 			select {
 			case client := <-r.joinCh:

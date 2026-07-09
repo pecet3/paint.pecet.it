@@ -14,9 +14,9 @@ import (
 )
 
 type User struct {
-	Uuid_   string `json:"uuid"`
-	Name_   string `json:"name"`
-	IsAdmin bool   `json:"is_admin"`
+	Uuid_ string `json:"uuid"`
+	Name_ string `json:"name"`
+	Rank_ int    `json:"rank"`
 }
 
 func (u *User) Uuid() string {
@@ -25,6 +25,9 @@ func (u *User) Uuid() string {
 
 func (u *User) Name() string {
 	return u.Name_
+}
+func (u *User) Rank() int {
+	return u.Rank_
 }
 
 type SimpleAuth struct {
@@ -60,14 +63,14 @@ func (sa *SimpleAuth) LoginHandler(wreq *ward.Request) {
 		http.Error(wreq.ResponseWriter, "Name is required", http.StatusBadRequest)
 		return
 	}
-	isAdmin := false
+	rank := 0
 	if reqBody.Password == env.Var.AdminPassword {
-		isAdmin = true
+		rank = 100
 	}
 	user := &User{
-		Uuid_:   uuid.NewString(),
-		Name_:   reqBody.Name,
-		IsAdmin: isAdmin,
+		Uuid_: uuid.NewString(),
+		Name_: reqBody.Name,
+		Rank_: rank,
 	}
 
 	authToken := uuid.NewString()

@@ -1,4 +1,4 @@
-package ward
+package wardrouter
 
 import (
 	"context"
@@ -49,19 +49,11 @@ type Request struct {
 
 func newRequest(ward *Ward, r *http.Request) *Request {
 	ip := getClientIP(r)
-	ward.hMu.RLock()
-	client, ok := ward.httpClients[ip]
-	ward.hMu.RUnlock()
-	if !ok {
-		ward.hMu.Lock()
-		if client, ok = ward.httpClients[ip]; !ok {
-			client = &ClientInfo{
-				Ip: ip,
-			}
-			ward.httpClients[ip] = client
-		}
-		ward.hMu.Unlock()
+
+	client := &ClientInfo{
+		Ip: ip,
 	}
+
 	wreq := &Request{
 		Id:         atomic.AddUint64(&ward.reqCounter, 1),
 		ClientInfo: client,
