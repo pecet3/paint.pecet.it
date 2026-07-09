@@ -52,6 +52,8 @@ export type RoomConfig = {
     name: string;
     password: string;
     is_temporary: boolean;
+    width: number;
+    height: number;
 };
 
 export type RoomInfo = {
@@ -59,4 +61,6 @@ export type RoomInfo = {
     online_users: number;
     is_temporary: boolean;
     is_passowrd: boolean;
+    width: number;
+    height: number;
 };

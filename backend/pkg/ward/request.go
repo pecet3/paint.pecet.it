@@ -122,12 +122,12 @@ func (r *Request) WriteErrLog(err error, status int, msg ...string) {
 	r.WriteErr(status, msg...)
 }
 
-func (r *Request) WriteJson(v any) error {
+func (r *Request) writeJson(v any) error {
 	return json.NewEncoder(r.ResponseWriter).Encode(v)
 }
 
-func (r *Request) WriteJsonOrErrLog(v any, errMsg ...string) {
-	err := r.WriteJson(v)
+func (r *Request) WriteJson(v any, errMsg ...string) {
+	err := r.writeJson(v)
 	if err != nil {
 		r.WriteErrLog(err, http.StatusInternalServerError, errMsg...)
 	}

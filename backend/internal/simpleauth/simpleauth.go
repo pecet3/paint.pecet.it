@@ -42,20 +42,15 @@ func New() *SimpleAuth {
 }
 
 type LoginRequest struct {
-	Name     string `json:"name"`
+	Name     string `json:"name" validate:"required,min=2,max=32"`
 	Password string `json:"password,omitempty"`
 }
 
 func (sa *SimpleAuth) LoginHandler(wreq *ward.Request) {
-	if wreq.Http.Method != http.MethodPost {
-		http.Error(wreq.ResponseWriter, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	var reqBody LoginRequest
-	err := json.NewDecoder(wreq.Http.Body).Decode(&reqBody)
+	err := wreq.GetValidJson(&reqBody)
 	if err != nil {
-		http.Error(wreq.ResponseWriter, "Invalid JSON payload", http.StatusBadRequest)
+		wreq.WriteErrLog(err, http.StatusBadRequest)
 		return
 	}
 

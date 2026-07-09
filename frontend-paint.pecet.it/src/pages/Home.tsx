@@ -166,11 +166,10 @@ export const Home: React.FC = () => {
             </div>
 
             <div>
-              <h2 className="text-xl font-bold text-gray-800 mb-4 pb-2 border-b border-gray-200">Temporary Rooms</h2>
               {temporaryRooms.length > 0 ? (
                 temporaryRooms.map((room) => <RoomCard key={room.name} room={room} />)
               ) : (
-                <p>No rooms available.</p>
+                permanentRooms.length == 0 && <p>No rooms available.</p>
               )}
             </div>
           </div>

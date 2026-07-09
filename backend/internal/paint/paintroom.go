@@ -12,30 +12,28 @@ import (
 	"paint.pecet.it/pkg/wardsocket"
 )
 
-const (
-	width  = 800
-	height = 600
-)
-
 type PaintRoomInfo struct {
 	Name        string `json:"name"`
 	IsTemporary bool   `json:"is_temporary"`
 	OnlineUsers int    `json:"online_users"`
 	IsPassword  bool   `json:"is_password"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
 }
 type RoomConfig struct {
-	Name        string `json:"name"`
+	Name        string `json:"name" validate:"required,min=3,max=32"`
 	IsTemporary bool   `json:"is_temporary"`
-	Password    string `json:"password"`
+	Password    string `json:"password" validate:"omitempty,min=4,max=64"`
+	Width       int    `json:"width" validate:"required,gte=100,lte=10000"`
+	Height      int    `json:"height" validate:"required,gte=100,lte=10000"`
 }
 
 type PaintRoom struct {
-	Channel   *wardsocket.Channel
-	cfg       *RoomConfig
-	Canvas    *image.RGBA
-	cMu       sync.RWMutex
-	streamBuf []byte
-	saveBuf   []byte
+	Channel *wardsocket.Channel
+	cfg     *RoomConfig
+	Canvas  *image.RGBA
+	cMu     sync.RWMutex
+	saveBuf []byte
 
 	uMu         sync.RWMutex
 	users       map[string]*User
@@ -47,8 +45,7 @@ func newPaintRoom(cfg *RoomConfig, channel *wardsocket.Channel) *PaintRoom {
 	p := &PaintRoom{
 		cfg:         cfg,
 		Channel:     channel,
-		Canvas:      image.NewRGBA(image.Rect(0, 0, width, height)),
-		streamBuf:   make([]byte, 0),
+		Canvas:      image.NewRGBA(image.Rect(0, 0, cfg.Width, cfg.Height)),
 		saveBuf:     make([]byte, 0),
 		users:       make(map[string]*User),
 		chatHistory: make([]ChatMessage, 0, 64),

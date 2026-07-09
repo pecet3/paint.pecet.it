@@ -1,17 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PaintCanvas } from "../components/paint/PaintCanvas";
 import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/paint/pixel";
-import type { ChatMessage, Event, NoteEvent, Pixel, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
+import type { ChatMessage, Event, NoteEvent, Pixel, RoomInfo, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
 import { Chat } from "../components/room/Chat";
 import { WebRTCManager, type WebRTCManagerHandle } from "../components/room/WebRTCManager";
 import { useNavigate, useParams } from "react-router";
 import { Synthesizer } from "../components/synth/Synthesizer";
 import { useStore } from "../Store";
 
-export const Room: React.FC = () => {
+export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
   const { user } = useStore()
-
-  let { roomName } = useParams();
   const navigate = useNavigate();
 
   const ws = useRef<WebSocket | null>(null);
@@ -27,7 +25,7 @@ export const Room: React.FC = () => {
   const [reconnectCounter, setReconnectCounter] = useState(0)
 
   useEffect(() => {
-    ws.current = new WebSocket("/api/rooms/" + roomName);
+    ws.current = new WebSocket("/api/join-room/" + roomInfo.name);
 
     ws.current.onmessage = (message: MessageEvent) => {
       const data = JSON.parse(message.data);
@@ -64,7 +62,7 @@ export const Room: React.FC = () => {
     ws.current.onclose = (evt: CloseEvent) => {
       if (reconnectCounter < 5) {
         console.log("ws conn closed, reconnecting: ", reconnectCounter)
-        ws.current = new WebSocket("/api/rooms/" + roomName);
+        ws.current = new WebSocket("/api/rooms/" + roomInfo);
         setReconnectCounter(reconnectCounter + 1)
       } else {
         navigate("/");
@@ -74,7 +72,7 @@ export const Room: React.FC = () => {
     return () => {
       ws.current?.close();
     };
-  }, [roomName, navigate]);
+  }, [roomInfo, navigate]);
 
   useEffect(() => {
     if (isJoined) {
@@ -208,5 +206,37 @@ export const Room: React.FC = () => {
         currentUserId={user?.uuid || ""}
         onSendNote={handleSendNoteRTC} />
     </div>
+  );
+};
+
+
+
+export const Room = () => {
+  let navigate = useNavigate();
+  let { roomName } = useParams();
+  const [room, setRoom] = useState<RoomInfo | null>(null)
+
+  const fetchRoom = async () => {
+    try {
+      const response = await fetch('/api/rooms/' + roomName);
+      if (response.ok) {
+        const data = await response.json();
+        console.log(data)
+        setRoom(data);
+      }
+    } catch (error) {
+      navigate("/")
+    }
+  };
+
+  useEffect(() => {
+    fetchRoom();
+  }, []);
+
+
+  return (
+    <>
+      {room && <PaintRoom roomInfo={room} />}
+    </>
   );
 };

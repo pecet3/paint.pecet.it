@@ -9,8 +9,18 @@ import (
 )
 
 func (api *Api) handleJoinRoom(wreq *ward.Request) {
-	roomName := wreq.Http.PathValue("id")
+	roomName := wreq.Http.PathValue("name")
 	if err := api.paint.AssignRequestToRoom(wreq, roomName); err != nil {
+		wreq.WriteErr(404, "Room not found")
+		return
+	}
+}
+func (api *Api) handleGetRoom(wreq *ward.Request) {
+	roomName := wreq.Http.PathValue("name")
+	r := api.paint.GetRoom(roomName)
+	if r != nil {
+		wreq.WriteJson(r.Info())
+	} else {
 		wreq.WriteErr(404, "Room not found")
 		return
 	}
