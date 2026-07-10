@@ -25,59 +25,40 @@ interface PeerData {
 }
 
 // ----------------------------------------------------------------------
-// Pomocniczy komponent wideo z ikonką mutowania wewnątrz kafelka
+// Pomocniczy komponent wideo
 // ----------------------------------------------------------------------
-const VideoPlayer: React.FC<{
-    stream: MediaStream | null;
-    muted?: boolean;
-    label: string;
-    showRemoteControls?: boolean;
-    onToggleRemoteMute?: () => void;
-}> = ({ stream, muted = false, label, showRemoteControls = false, onToggleRemoteMute }) => {
-    const videoRef = useRef<HTMLVideoElement>(null);
+const VideoPlayer: React.FC<{ stream: MediaStream | null; muted?: boolean; label: string; onMute?: () => void }> =
+    ({ stream, muted = false, label, onMute }) => {
+        const videoRef = useRef<HTMLVideoElement>(null);
 
-    useEffect(() => {
-        if (videoRef.current && stream) {
-            videoRef.current.srcObject = stream;
-        }
-    }, [stream]);
+        useEffect(() => {
+            if (videoRef.current && stream) {
+                videoRef.current.srcObject = stream;
+            }
+        }, [stream]);
 
-    return (
-        <div className="relative bg-gray-800 rounded-xl overflow-hidden border
+        return (
+            <div className="relative bg-gray-800 rounded-xl overflow-hidden border
          border-gray-700 flex items-center justify-center aspect-video shadow-sm">
-            {stream ? (
-                <video
-                    ref={videoRef}
-                    autoPlay
-                    playsInline
-                    muted={muted}
-                    className="w-full h-full object-cover"
-                />
-            ) : (
-                <span className="text-gray-500 text-sm font-medium animate-pulse">Connecting</span>
-            )}
-
-            {/* Lewy dolny róg: Nazwa użytkownika */}
-            <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm text-gray-200 text-xs px-2 py-1 rounded-md max-w-[60%] truncate">
-                {label} {muted && " (Muted)"}
+                {stream ? (
+                    <video
+                        ref={videoRef}
+                        autoPlay
+                        playsInline
+                        muted={muted}
+                        className="w-full h-full object-cover"
+                    />
+                ) : (
+                    <span className="text-gray-500 text-sm font-medium animate-pulse">Connecting</span>
+                )}
+                <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm text-gray-200 text-xs px-2 py-1 rounded-md max-w-[80%] truncate">
+                    {label}
+                </div>
+                {onMute && muted ? <button onClick={onMute} className="absolute bottom-2 right-2">🔈</button>
+                    : <button onClick={onMute} className="absolute bottom-2 right-2">🔇</button>}
             </div>
-
-            {/* Prawy dolny róg: Sama ikonka Unicode do mutowania lokatnego */}
-            {showRemoteControls && onToggleRemoteMute && (
-                <button
-                    onClick={onToggleRemoteMute}
-                    className={`absolute bottom-2 right-2 p-1.5 rounded-md text-xs backdrop-blur-sm transition-all active:scale-95 ${muted
-                        ? "bg-red-600/80 text-white hover:bg-red-600"
-                        : "bg-black/70 text-gray-200 hover:bg-black/90"
-                        }`}
-                    title={muted ? "Unmute user" : "Mute user"}
-                >
-                    {muted ? "🔈" : "🔊"}
-                </button>
-            )}
-        </div>
-    );
-};
+        );
+    };
 
 // ----------------------------------------------------------------------
 // Główny komponent WebRTCManager
@@ -101,14 +82,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
     const [remoteStreams, setRemoteStreams] = useState<Record<string, MediaStream>>({});
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-    // Stan kontrolek dla samego siebie
-    const [isMicEnabled, setIsMicEnabled] = useState(true);
-    const [isCamEnabled, setIsCamEnabled] = useState(true);
-
-    // Stan lokalnego wyciszenia zdalnych użytkowników { [uuid]: boolean }
-    const [mutedRemoteUsers, setMutedRemoteUsers] = useState<Record<string, boolean>>({});
-
-    // 1. Inicjalizacja lokalnego strumienia
+    // 1. Inicjalizacja lokalnego strumienia (niska jakość)
     useEffect(() => {
         let isMounted = true;
 
@@ -141,35 +115,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
         };
     }, [localUserUuid]);
 
-    // Przełączanie własnego mikrofonu
-    const toggleLocalMic = () => {
-        if (localStreamRef.current) {
-            localStreamRef.current.getAudioTracks().forEach(track => {
-                track.enabled = !isMicEnabled;
-            });
-            setIsMicEnabled(!isMicEnabled);
-        }
-    };
-
-    // Przełączanie własnej kamery
-    const toggleLocalCam = () => {
-        if (localStreamRef.current) {
-            localStreamRef.current.getVideoTracks().forEach(track => {
-                track.enabled = !isCamEnabled;
-            });
-            setIsCamEnabled(!isCamEnabled);
-        }
-    };
-
-    // Przełączanie wyciszenia kogoś u siebie
-    const toggleRemoteMute = (uuid: string) => {
-        setMutedRemoteUsers(prev => ({
-            ...prev,
-            [uuid]: !prev[uuid]
-        }));
-    };
-
-    // 2. Tworzenie PeerConnection
+    // 2. Tworzenie PeerConnection i czyszczenie w razie awarii ICE
     const createPeer = useCallback((targetUuid: string) => {
         const pc = new RTCPeerConnection(STUN_SERVERS);
         const peerData: PeerData = { pc, iceQueue: [] };
@@ -188,10 +134,12 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
             };
         };
 
+        // Tworzymy kanał lokalnie (jako strona inicjująca połączenie)
         const dataChannel = pc.createDataChannel("general_data_channel");
         setupDataChannel(dataChannel);
         peerData.dataChannel = dataChannel;
 
+        // Odbieramy kanał utworzony przez drugą stronę
         pc.ondatachannel = (event) => {
             peerData.dataChannel = event.channel;
             setupDataChannel(event.channel);
@@ -215,9 +163,10 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
             }
         };
 
+        // Auto-leczenie: jeśli połączenie padnie na poziomie sieci, usuwamy je
         pc.oniceconnectionstatechange = () => {
             if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-                console.warn(`Połączenie z ${targetUuid} zerwane. Czyścimy...`);
+                console.warn(`Połączenie z ${targetUuid} zerwane (stan: ${pc.iceConnectionState}). Czyścimy...`);
                 pc.close();
                 peersRef.current.delete(targetUuid);
                 setRemoteStreams(prev => {
@@ -239,12 +188,14 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
             if (u.uuid !== localUserUuid && u.is_connected && !peersRef.current.has(u.uuid)) {
                 const peerData = createPeer(u.uuid);
 
+
                 peerData.pc.createOffer()
                     .then(offer => peerData.pc.setLocalDescription(offer))
                     .then(() => {
                         onSendSignal({ targetUuid: u.uuid, senderUuid: localUserUuid, signalType: "offer", data: peerData.pc.localDescription });
                     })
                     .catch(err => console.error("Błąd tworzenia oferty dla", u.uuid, err));
+
             }
         });
 
@@ -262,13 +213,15 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
         });
     }, [users, localUserUuid, isMediaReady, createPeer, onSendSignal]);
 
-    // 4. Procesor sygnałów z MUTEXEM
+    // 4. Masywna zmiana: Rygorystyczny procesor sygnałów z MUTEXEM
     const processSignalQueue = useCallback(async () => {
+        // Jeśli kamera nie jest gotowa LUB już przetwarzamy kolejkę, uciekamy.
         if (!isMediaReady || isProcessingRef.current || signalQueueRef.current.length === 0) return;
 
-        isProcessingRef.current = true;
+        isProcessingRef.current = true; // ZAKŁADAMY BLOKADĘ (MUTEX)
 
         try {
+            // Przetwarzaj pętlą while, upewniając się, że wykonujemy po jednym zadaniu na raz
             while (signalQueueRef.current.length > 0) {
                 const signal = signalQueueRef.current.shift();
                 if (!signal) continue;
@@ -284,6 +237,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
 
                 try {
                     if (signalType === "offer") {
+                        // Dodatkowe zabezpieczenie: ignoruj ofertę, jeśli my już wysłaliśmy (signaling state collision)
                         if (pc.signalingState !== "stable" && pc.signalingState !== "have-local-offer") {
                             console.warn("Zignorowano ofertę od", senderUuid, "z powodu stanu", pc.signalingState);
                             continue;
@@ -320,14 +274,19 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
                 }
             }
         } finally {
+            // ZDEJMUJEMY BLOKADĘ bez względu na to czy wystąpił błąd
             isProcessingRef.current = false;
         }
     }, [isMediaReady, localUserUuid, createPeer, onSendSignal]);
 
+    // Dodawanie do kolejki
     useImperativeHandle(ref, () => ({
         receiveSignal: (signal: WebRTCSignalPayload) => {
             if (signal.targetUuid !== localUserUuid) return;
+
+            // Wrzucamy sygnał bezpośrednio do referencji kolejki
             signalQueueRef.current.push(signal);
+            // I odpalamy procesor
             processSignalQueue();
         },
         broadcastData: (event: Event) => {
@@ -340,6 +299,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
         }
     }), [localUserUuid, processSignalQueue]);
 
+    const [mutedUsers, setMutedUsers] = useState([""])
     // 5. Zwracany UI
     return (
         <div className="w-full flex flex-col space-y-4">
@@ -349,50 +309,33 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
                 </div>
             )}
 
-            {/* Siatka z samymi kafelkami wideo */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                <VideoPlayer stream={localStreamDisplay} muted={true} label="You" onMute={() => {
+                    setMutedUsers(prev => [...prev, ""])
+                }} />
 
-                {/* Twoje wideo */}
-                <VideoPlayer stream={localStreamDisplay} muted={true} label="You" />
-
-                {/* Wideo innych użytkowników z przyciskiem wyciszania w rogu */}
                 {Object.entries(remoteStreams).map(([uuid, stream]) => {
                     const userMeta = users.find(u => u.uuid === uuid);
-                    const displayName = userMeta ? userMeta.name : `Gość (${uuid.substring(0, 4)})`;
-                    const isMutedLocally = !!mutedRemoteUsers[uuid];
-
+                    const displayName = userMeta ? userMeta.name : `${uuid.slice(0, 16)}`;
+                    const isUserMuted = mutedUsers.includes(uuid);
                     return (
                         <VideoPlayer
                             key={uuid}
                             stream={stream}
                             label={displayName}
-                            muted={isMutedLocally}
-                            showRemoteControls={true}
-                            onToggleRemoteMute={() => toggleRemoteMute(uuid)}
+                            muted={isUserMuted}
+                            onMute={() => {
+                                setMutedUsers(prev => {
+                                    if (isUserMuted) {
+                                        return prev.filter(id => id !== uuid);
+                                    } else {
+                                        return [...prev, uuid];
+                                    }
+                                });
+                            }}
                         />
                     );
                 })}
-            </div>
-
-            {/* Panel kontrolny pod WSZYSTKIMI kafelkami wideo (Mutowanie Siebie) */}
-            <div className="flex justify-center items-center space-x-3 pt-2 border-t border-gray-800">
-                <button
-                    onClick={toggleLocalMic}
-                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 flex items-center space-x-2 ${isMicEnabled ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-red-900/60 text-red-200 hover:bg-red-800 border border-red-700"
-                        }`}
-                >
-                    <span>🔈</span>
-                    <span>{isMicEnabled ? "Mute Me" : "Unmute Me"}</span>
-                </button>
-
-                <button
-                    onClick={toggleLocalCam}
-                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 flex items-center space-x-2 ${isCamEnabled ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-red-900/60 text-red-200 hover:bg-red-800 border border-red-700"
-                        }`}
-                >
-                    <span>📷</span>
-                    <span>{isCamEnabled ? "Turn Cam Off" : "Turn Cam On"}</span>
-                </button>
             </div>
         </div>
     );

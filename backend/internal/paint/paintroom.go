@@ -12,22 +12,6 @@ import (
 	"paint.pecet.it/pkg/wardsocket"
 )
 
-type PaintRoomInfo struct {
-	Name        string `json:"name"`
-	IsTemporary bool   `json:"is_temporary"`
-	OnlineUsers int    `json:"online_users"`
-	IsPassword  bool   `json:"is_password"`
-	Width       int    `json:"width"`
-	Height      int    `json:"height"`
-}
-type RoomConfig struct {
-	Name        string `json:"name" validate:"required,min=3,max=32"`
-	IsTemporary bool   `json:"is_temporary"`
-	Password    string `json:"password" validate:"omitempty,min=4,max=64"`
-	Width       int    `json:"width" validate:"required,gte=100,lte=10000"`
-	Height      int    `json:"height" validate:"required,gte=100,lte=10000"`
-}
-
 type PaintRoom struct {
 	Channel *wardsocket.Channel
 	cfg     *RoomConfig
@@ -78,6 +62,8 @@ func (p *PaintRoom) Info() PaintRoomInfo {
 		IsTemporary: p.cfg.IsTemporary,
 		OnlineUsers: onlineUsers,
 		IsPassword:  p.cfg.Password != "",
+		Width:       p.cfg.Width,
+		Height:      p.cfg.Height,
 	}
 }
 

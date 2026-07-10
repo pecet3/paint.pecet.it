@@ -15,6 +15,11 @@ type Ward struct {
 	reqCounter uint64
 	mux        *http.ServeMux
 
+	getRoutes    map[string]Route
+	postRoutes   map[string]Route
+	putRoutes    map[string]Route
+	deleteRoutes map[string]Route
+
 	routes map[string]Route
 
 	basePath string
@@ -54,12 +59,11 @@ func (ward *Ward) middleware(pattern string, handler func(wreq *Request), mws ..
 
 func (ward *Ward) Get(path string, handler func(wreq *Request)) *Route {
 	r := Route{
-		path:     path,
-		handlers: make([]Handler, 0),
-		method:   "GET ",
+		path:   path,
+		method: "GET ",
 	}
-
-	ward.routes[r.method+path] = r
+	r.handlers[0] = handler
+	ward.getRoutes[r.method+path] = r
 	return &r
 }
 

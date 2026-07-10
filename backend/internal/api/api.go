@@ -21,6 +21,8 @@ func New(app *app.App) *Api {
 	app.Paint.CreateRoom(&paint.RoomConfig{
 		Name:        "general",
 		IsTemporary: false,
+		Width:       1000,
+		Height:      1000,
 	})
 	return &Api{ward: app.Ward, auth: app.Auth, paint: app.Paint}
 }

@@ -1,12 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PaintCanvas } from "../components/paint/PaintCanvas";
 import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/paint/pixel";
-import type { ChatMessage, Event, NoteEvent, Pixel, RoomInfo, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
+import type { ChatMessage, Event, Pixel, RoomConfig, RoomInfo, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
 import { Chat } from "../components/room/Chat";
 import { WebRTCManager, type WebRTCManagerHandle } from "../components/room/WebRTCManager";
 import { useNavigate, useParams } from "react-router";
-import { Synthesizer } from "../components/synth/Synthesizer";
 import { useStore } from "../Store";
+
 
 export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
   const { user } = useStore()
@@ -118,14 +118,14 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
 
   */
 
-  const [incomingNote, setIncomingNote] = useState<NoteEvent | null>(null)
+  // const [incomingNote, setIncomingNote] = useState<NoteEvent | null>(null)
   const receiveWebRTCData = (event: Event) => {
     switch (event.type) {
       case "canvas_pixel_update":
         setIncomingPixels(decodeBase64ToPixels(event.payload));
         break;
       case "synth_note_update":
-        setIncomingNote(event.payload)
+        // setIncomingNote(event.payload)
         break;
       default:
         console.warn("unhandled webRTC event type: ", event.type);
@@ -143,69 +143,79 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
       }
     };
   }
-  const handleSendNoteRTC = (note: NoteEvent) => {
-    if (isWebRTC) {
-      if (webrtcRef.current) {
-        webrtcRef.current.broadcastData({
-          type: "synth_note_update",
-          payload: note,
-        });
-      }
-    };
+  // const handleSendNoteRTC = (note: NoteEvent) => {
+  //   if (isWebRTC) {
+  //     if (webrtcRef.current) {
+  //       webrtcRef.current.broadcastData({
+  //         type: "synth_note_update",
+  //         payload: note,
+  //       });
+  //     }
+  //   };
+  // }
+  const cfg: RoomConfig = {
+    height: roomInfo.height,
+    width: roomInfo.width,
+    is_temporary: false,
+    name: "",
+    password: ""
   }
 
+  const [isConnect, setIsConnect] = useState(true)
+
   return (
-    <div className="m-2 flex flex-col items-center gap-2">
-      <div className="flex gap-1 items-center justify-center w-full flex-col xl:flex-row">
+    <>
+      {isConnect ? <div className="m-2 flex flex-col items-center gap-2">
+        < div className="flex gap-1 items-center justify-center w-full flex-col xl:flex-row" >
 
-        {isWebRTC
-          ? <PaintCanvas
-            onSendPixelUpdate={handleSendPixelUpdateWS}
-            incomingPixels={incomingPixels}
-            onSendPixelUpdateRTC={handleSendPixelUpdateRTC}
-          />
-          : <PaintCanvas
-            onSendPixelUpdate={handleSendPixelUpdateWS}
-            incomingPixels={incomingPixels}
-          />}
+          {
+            isWebRTC
+              ? <PaintCanvas
+                config={cfg}
+                onSendPixelUpdate={handleSendPixelUpdateWS}
+                incomingPixels={incomingPixels}
+                onSendPixelUpdateRTC={handleSendPixelUpdateRTC}
+              />
+              : <PaintCanvas
+                config={cfg}
+                onSendPixelUpdate={handleSendPixelUpdateWS}
+                incomingPixels={incomingPixels}
+              />}
 
-        <div className="flex flex-col items-center m-auto h-full w-full justify-between">
-          {isWebRTC ?
-            (
-              <>
-                <WebRTCManager
-                  ref={webrtcRef}
-                  users={users}
-                  onSendSignal={handleSendSignal}
-                  onDataReceived={receiveWebRTCData}
-                />
-                <button className=" btn bg-red-800 text-xs" onClick={() => {
-                  setIsWebRTC(false)
-                }}>Disconnect</button>
-              </>
-            )
-            : isJoined &&
-            <button className=" btn bg-lime-700 text-xs" onClick={() => {
-              setIsWebRTC(true)
-            }}>Connect</button>}
-          {serverMessage && (
-            <div className="flex text-xl justify-center">
-              {serverMessage.message}
-            </div>
-          )}
-          <Chat
-            users={users}
-            messages={chatMessages}
-            onSendMessage={handleSendChatMessage}
-            onKick={handleKick}
-          />
-        </div>
-      </div>
-      <Synthesizer
-        incomingNote={incomingNote}
-        currentUserId={user?.uuid || ""}
-        onSendNote={handleSendNoteRTC} />
-    </div>
+          <div className="flex flex-col items-center m-auto h-full w-full justify-between">
+            {isWebRTC ?
+              (
+                <>
+                  <WebRTCManager
+                    ref={webrtcRef}
+                    users={users}
+                    onSendSignal={handleSendSignal}
+                    onDataReceived={receiveWebRTCData}
+                  />
+
+                </>
+              )
+              :
+
+              serverMessage && (
+                <div className="flex text-xl justify-center">
+                  {serverMessage.message}
+                </div>
+              )}
+            <Chat
+              users={users}
+              messages={chatMessages}
+              onSendMessage={handleSendChatMessage}
+              onKick={handleKick}
+            />
+          </div>
+        </div >
+
+      </div > : <button className="btn" onClick={async () => {
+        setIsConnect(true)
+
+      }}>Connect</button>}
+    </>
   );
 };
 
@@ -223,6 +233,8 @@ export const Room = () => {
         const data = await response.json();
         console.log(data)
         setRoom(data);
+      } else {
+        navigate("/")
       }
     } catch (error) {
       navigate("/")
@@ -236,7 +248,9 @@ export const Room = () => {
 
   return (
     <>
-      {room && <PaintRoom roomInfo={room} />}
+      {room && <>
+        <PaintRoom roomInfo={room} />
+      </>}
     </>
   );
 };

@@ -17,7 +17,7 @@ export const Synthesizer: React.FC<SynthesizerProps> = ({
     currentUserId,
 }) => {
     const [synthType, setSynthType] = useState<SynthType>('subtractive');
-    const [audioInitialized, setAudioInitialized] = useState(false);
+    const [audioInitialized, setAudioInitialized] = useState(true);
     // Stan do śledzenia aktywnych nut (dla efektu wizualnego)
     const [activeNotes, setActiveNotes] = useState<Record<string, boolean>>({});
 
@@ -78,9 +78,7 @@ export const Synthesizer: React.FC<SynthesizerProps> = ({
 
     return (
         <div className="p-6 bg-slate-900 text-slate-100 rounded-xl shadow-lg border border-slate-800 max-w-2xl">
-            <h3 className="text-xl font-bold mb-4 tracking-wide text-indigo-400">
-                Multiplayer Synth Engine
-            </h3>
+
 
             {!audioInitialized ? (
                 <button

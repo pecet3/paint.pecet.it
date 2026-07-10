@@ -1,16 +1,18 @@
 import React, { useRef, useState, useEffect } from 'react';
-import type { Pixel } from '../../types';
+import type { Pixel, RoomConfig } from '../../types';
 
 interface PaintCanvasProps {
     onSendPixelUpdate: (pixels: Pixel[]) => void;
     onSendPixelUpdateRTC?: (pixels: Pixel[]) => void;
     incomingPixels: Pixel[] | null;
+    config: RoomConfig;
 }
 
 export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     onSendPixelUpdate,
     incomingPixels,
     onSendPixelUpdateRTC,
+    config
 }) => {
     const mainCanvasRef = useRef<HTMLCanvasElement>(null);
     const bufferCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -176,7 +178,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     };
 
     return (
-        <div className="bg-slate-700 p-2 rounded-lg w-full border border-black flex flex-col items-center ">
+        <div className="bg-slate-700 p-2 rounded-lg w-full border border-black flex flex-col items-center max-w-4xl max-h-[92vh] h-full">
 
             <div className='flex items-end justify-between w-full m-auto'>
                 <div className="flex gap-1">
@@ -221,29 +223,39 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                     X: {mouseCoords.x.toString().padStart(3, '0')} | Y: {mouseCoords.y.toString().padStart(3, '0')}
                 </div>
             </div>
-            <div className="">
-                <canvas
-                    ref={mainCanvasRef}
-                    width={800}
-                    height={600}
-                    className={` top-0 left-0 border-2 border-gray-800 bg-white ${tool === 'text' ? 'cursor-text' : 'cursor-crosshair'}`}
-                    onMouseDown={(e) => handleMouseEvent(e, 'start')}
-                    onMouseMove={(e) => handleMouseEvent(e, 'draw')}
-                    onMouseUp={(e) => handleMouseEvent(e, 'end')}
-                    onMouseOut={(e) => handleMouseEvent(e, 'end')}
-                />
-                <canvas
-                    ref={bufferCanvasRef}
-                    width={800}
-                    height={600}
-                    className="hidden"
-                />
-                <canvas
-                    ref={bufferCanvasRTCRef}
-                    width={800}
-                    height={600}
-                    className="hidden"
-                />
+            <div className="flex-1 w-full h-full overflow-auto bg-gray-200">
+
+                {/* Wrapper bezpośrednio wokół canvasów, który dopasuje się do ich fizycznego rozmiaru */}
+                <div
+                    className="relative shadow-lg mx-auto"
+                    style={{ width: config.width, height: config.height }}
+                >
+                    <canvas
+                        ref={mainCanvasRef}
+                        width={config.width}
+                        height={config.height}
+                        className={`absolute top-0 left-0 border-gray-800 bg-white ${tool === 'text' ? 'cursor-text' : 'cursor-crosshair'
+                            }`}
+                        onMouseDown={(e) => handleMouseEvent(e, 'start')}
+                        onMouseMove={(e) => handleMouseEvent(e, 'draw')}
+                        onMouseUp={(e) => handleMouseEvent(e, 'end')}
+                        onMouseOut={(e) => handleMouseEvent(e, 'end')}
+                    />
+
+                    <canvas
+                        ref={bufferCanvasRef}
+                        width={config.width}
+                        height={config.height}
+                        className="hidden"
+                    />
+
+                    <canvas
+                        ref={bufferCanvasRTCRef}
+                        width={config.width}
+                        height={config.height}
+                        className="hidden"
+                    />
+                </div>
             </div>
         </div>
     );

@@ -1,18 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
+import type { RoomConfig, RoomInfo } from '../types';
 
-export type RoomConfig = {
-  name: string;
-  password: string;
-  is_temporary: boolean;
-};
 
-export type RoomInfo = {
-  name: string;
-  online_users: number;
-  is_temporary: boolean;
-  is_passowrd: boolean;
-};
 
 export const Home: React.FC = () => {
   let navigate = useNavigate();
@@ -23,6 +13,8 @@ export const Home: React.FC = () => {
     name: '',
     password: '',
     is_temporary: true,
+    height: 100,
+    width: 100,
   });
 
   const fetchRooms = async () => {
@@ -45,7 +37,7 @@ export const Home: React.FC = () => {
     const { name, value, type, checked } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : type === 'number' ? Number(value) : value,
+      [name]: type === 'checkbox' ? checked : (type === 'number' || type === 'range') ? Number(value) : value,
     }));
   };
 
@@ -62,9 +54,9 @@ export const Home: React.FC = () => {
 
       if (response.ok) {
         setIsFormVisible(false);
-        setFormData({ name: '', password: '', is_temporary: false });
+        setFormData({ name: '', password: '', is_temporary: false, width: 100, height: 100, });
         fetchRooms();
-        navigate(`/rooms/${formData.name}`)
+        navigate(`/room/${formData.name}`)
       }
     } catch (error) {
       console.error(error);
@@ -137,7 +129,7 @@ export const Home: React.FC = () => {
               />
             </div>
 
-            <label className="">
+            {/* <label className="">
               <input
                 type="checkbox"
                 name="is_temporary"
@@ -146,8 +138,17 @@ export const Home: React.FC = () => {
                 className=""
               />
               <span className="text-sm font-semibold ">Temporary Room</span>
+            </label> */}
+            <label className="flex items-center">
+              Width {formData.width}px
+              <input type="range" name="width" min="100" max="2000" value={formData.width} onChange={handleInputChange}
+                className="" />
             </label>
-
+            <label className="flex items-center">
+              Height {formData.height}px
+              <input type="range" min="100" name="height" max="2000" value={formData.height} onChange={handleInputChange}
+                className="" />
+            </label>
             <button
               type="submit"
               className="btn bg-black"

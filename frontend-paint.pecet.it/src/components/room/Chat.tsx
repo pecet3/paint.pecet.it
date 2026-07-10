@@ -50,19 +50,25 @@ export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage, onKi
             setInput("");
         }
     };
-
+    const [uuidToManage, setUuidToManage] = useState("")
     return (
         <div className="bg-slate-700 rounded-lg m-auto border border-black flex max-w-2xl w-full h-64">
             <div className="w-1/4 border-r border-gray-400 flex flex-col items-center bg-slate-800 rounded-l-lg">
                 <h2 className="font-bold">Users</h2>
                 <div className="flex flex-col gap-2 overflow-y-auto">
                     {users.map((user) => (
-                        <div key={user.uuid} className="flex items-center gap-0.5 text-xs">
-                            <span className={`w-1 h-1 rounded-full ${user.is_connected ? "bg-green-500" : "bg-gray-400"}`} />
-                            <span className="truncate">{user.name.slice(0, 16)}</span>
-                            {user.is_operator && <span className="text-[8px] bg-blue-100 text-blue-600 px-1 rounded">OP</span>}
-                            {isOp && <button onClick={() => onKick(user.uuid)} className="cursor-pointer">kick</button>}
-                        </div>
+                        <>
+                            <div key={user.uuid} className="flex items-center gap-0.5 text-xs">
+                                <span className={`w-1 h-1 rounded-full ${user.is_connected ? "bg-green-500" : "bg-gray-400"}`} />
+                                <span className="truncate">{user.name.slice(0, 16)}</span>
+                                {user.is_operator && <span className="text-[8px] bg-blue-100 text-blue-600 px-1 rounded">OP</span>}
+                                {isOp && <button onClick={() => setUuidToManage(user.uuid)} className="cursor-pointer ">⚙️</button>}
+                            </div>
+                            <div key={user.uuid} className="flex items-center gap-0.5 text-xs">
+                                {isOp && <button onClick={() => onKick(user.uuid)} className="cursor-pointer">Manage</button>}
+
+                            </div>
+                        </>
                     ))}
                 </div>
             </div>
