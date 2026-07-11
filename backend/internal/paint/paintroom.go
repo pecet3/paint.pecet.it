@@ -45,6 +45,8 @@ func (p *PaintRoom) RegisterHandlers() {
 	p.Channel.RegisterEventHandler("chat_message", p.handleChatMessage)
 	p.Channel.RegisterEventHandler("webrtc_signal", p.handleSignal)
 
+	p.Channel.RegisterEventHandler("user_kick", p.handleUserKick)
+
 }
 func (p *PaintRoom) Info() PaintRoomInfo {
 	p.uMu.RLock()

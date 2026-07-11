@@ -3,6 +3,7 @@ package paint
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"time"
 
 	"paint.pecet.it/pkg/ward"
@@ -18,6 +19,8 @@ type User struct {
 	LastChatMsgAt time.Time
 	JoinedAt      time.Time
 }
+
+// COMMENT: asa
 type ChatMessage struct {
 	Name    string    `json:"name"`
 	Uuid    string    `json:"uuid"`
@@ -30,12 +33,13 @@ type ServerMessage struct {
 	Date    time.Time `json:"date"`
 }
 
-type RoomUserEvt struct {
-	UUID          string `json:"uuid"`
-	Name          string `json:"name"`
-	IsOperator    bool   `json:"is_operator"`
-	IsConnected   bool   `json:"is_connected"`
-	IsAbleDrawing bool   `json:"is_able_drawing"`
+type RoomUser struct {
+	UUID        string `json:"uuid"`
+	Name        string `json:"name"`
+	IsOperator  bool   `json:"is_operator"`
+	IsConnected bool   `json:"is_connected"`
+	IsDrawing   bool   `json:"is_drawing"`
+	IsKicked    bool   `json:"is_kicked"`
 }
 
 type SignalPayload struct {
@@ -43,6 +47,42 @@ type SignalPayload struct {
 	SenderUUID string          `json:"senderUuid"`
 	SignalType string          `json:"signalType"`
 	Data       json.RawMessage `json:"data"`
+}
+
+type UserManagmentPayload struct {
+	Uuid string `json:"uuid"`
+}
+
+func (p *PaintRoom) handleUserKick(ctx context.Context, event *wardsocket.Event) {
+	p.uMu.Lock()
+	defer p.uMu.Unlock()
+	p.Log(event)
+	eventUser, ok := p.users[event.Client.Request.User.Uuid()]
+	if !ok {
+		p.Log("user doesn't belong to room requested user managment event ", event.Client.Request.User.Uuid())
+		return
+	}
+
+	if !eventUser.IsOperator {
+		p.Log("no operator requested user managment event ", event.Client.Request.User.Uuid())
+		return
+	}
+	var payload UserManagmentPayload
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		p.Log(err)
+
+		return
+	}
+
+	log.Println(payload)
+	manageUser, ok := p.users[payload.Uuid]
+	if !ok {
+		p.Log("user to manage doesn't belong to room", payload.Uuid)
+		return
+	}
+	manageUser.IsKicked = !manageUser.IsKicked
+
+	p.BroadcastUserList()
 }
 
 func (p *PaintRoom) handleGetAllCanvas(ctx context.Context, event *wardsocket.Event) {

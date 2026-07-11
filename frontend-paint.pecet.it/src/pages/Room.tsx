@@ -18,7 +18,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
   const [incomingPixels, setIncomingPixels] = useState<Pixel[] | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [users, setUsers] = useState<RoomUser[]>([]);
-  const [serverMessage, setServerMessage] = useState<ServerMessage | null>(null);
+  const [serverMessage, setServerMessage] = useState<ServerMessage | null>({ date: "", message: "" });
 
   const [isJoined, setIsJoined] = useState(false);
   const [isWebRTC, setIsWebRTC] = useState(false)
@@ -87,9 +87,19 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
     }
   };
 
-  const handleKick = (uuid: string) => {
+  const handleUserKick = (uuid: string) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({ type: "kick_user", payload: { uuid } }));
+      ws.current.send(JSON.stringify({ type: "user_kick", payload: { uuid } }));
+    }
+  };
+  const handleUserOperator = (uuid: string) => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ type: "user_operator", payload: { uuid } }));
+    }
+  };
+  const handleUserCanDrawing = (uuid: string) => {
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ type: "user_drawing", payload: { uuid } }));
     }
   };
 
@@ -206,7 +216,11 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
               users={users}
               messages={chatMessages}
               onSendMessage={handleSendChatMessage}
-              onKick={handleKick}
+              operatorHandlers={{
+                onDrawing: handleUserCanDrawing,
+                onKick: handleUserKick,
+                onOp: handleUserOperator
+              }}
             />
           </div>
         </div >

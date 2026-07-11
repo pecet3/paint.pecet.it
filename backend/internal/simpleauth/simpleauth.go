@@ -2,7 +2,6 @@ package simpleauth
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -115,8 +114,6 @@ func (sa *SimpleAuth) PingHandler(wreq *ward.Request) {
 
 func (sa *SimpleAuth) AuthMiddleware(next ward.Handler) ward.Handler {
 	return func(wreq *ward.Request) {
-		log.Println(12)
-
 		cookie, err := wreq.Http.Cookie("auth-token")
 		if err != nil {
 			http.Error(wreq, "", http.StatusUnauthorized)

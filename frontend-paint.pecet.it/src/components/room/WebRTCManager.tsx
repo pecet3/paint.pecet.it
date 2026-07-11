@@ -43,7 +43,7 @@ const VideoPlayer: React.FC<{
     }, [stream]);
 
     return (
-        <div className="relative bg-gray-800 rounded-xl overflow-hidden border
+        <div className="relative bg-gray-800 rounded-lg overflow-hidden border
          border-gray-700 flex items-center justify-center aspect-video shadow-sm">
             {stream ? (
                 <video
@@ -58,15 +58,16 @@ const VideoPlayer: React.FC<{
             )}
 
             {/* Lewy dolny róg: Nazwa użytkownika */}
-            <div className="absolute bottom-2 left-2 bg-black/70 backdrop-blur-sm text-gray-200 text-xs px-2 py-1 rounded-md max-w-[60%] truncate">
-                {label} {muted && " (Muted)"}
+            <div className="absolute bottom-1 left-1 bg-black/70 backdrop-blur-sm text-gray-200 text-[10px]
+             p-0.5 rounded-md max-w-[60%] truncate">
+                {label} {muted && label !== "You" && " (Muted)"}
             </div>
 
             {/* Prawy dolny róg: Sama ikonka Unicode do mutowania lokatnego */}
             {showRemoteControls && onToggleRemoteMute && (
                 <button
                     onClick={onToggleRemoteMute}
-                    className={`absolute bottom-2 right-2 p-1.5 rounded-md text-xs backdrop-blur-sm transition-all active:scale-95 ${muted
+                    className={`absolute bottom-1 right-1 p-1.5 rounded-md text-xs backdrop-blur-sm transition-all active:scale-95 ${muted
                         ? "bg-red-600/80 text-white hover:bg-red-600"
                         : "bg-black/70 text-gray-200 hover:bg-black/90"
                         }`}
@@ -378,7 +379,9 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
             <div className="flex justify-center items-center space-x-3 pt-2 border-t border-gray-800">
                 <button
                     onClick={toggleLocalMic}
-                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 flex items-center space-x-2 ${isMicEnabled ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-red-900/60 text-red-200 hover:bg-red-800 border border-red-700"
+                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 flex items-center border
+                         space-x-2 ${isMicEnabled ? "bg-gray-800 text-gray-200 hover:bg-gray-700"
+                            : "bg-red-900/60 text-red-200 hover:bg-red-800 border border-red-700"
                         }`}
                 >
                     <span>🔈</span>
@@ -387,7 +390,10 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
 
                 <button
                     onClick={toggleLocalCam}
-                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 flex items-center space-x-2 ${isCamEnabled ? "bg-gray-800 text-gray-200 hover:bg-gray-700" : "bg-red-900/60 text-red-200 hover:bg-red-800 border border-red-700"
+                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all border
+                        active:scale-95 flex items-center space-x-2
+                         ${isCamEnabled ? "bg-gray-800 text-gray-200 hover:bg-gray-700"
+                            : "bg-red-900/60 text-red-200 hover:bg-red-800 border border-red-700"
                         }`}
                 >
                     <span>📷</span>

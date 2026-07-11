@@ -49,14 +49,15 @@ func (p *PaintRoom) SendChatHistory(client *wardsocket.Client) {
 	}
 }
 func (p *PaintRoom) BroadcastUserList() {
-	var list []RoomUserEvt
+	var list []RoomUser
 	for _, u := range p.users {
-		list = append(list, RoomUserEvt{
-			UUID:          u.WardUser.Uuid(),
-			Name:          u.WardUser.Name(),
-			IsOperator:    u.IsOperator,
-			IsConnected:   u.IsConnected,
-			IsAbleDrawing: u.IsAbleDrawing,
+		list = append(list, RoomUser{
+			UUID:        u.WardUser.Uuid(),
+			Name:        u.WardUser.Name(),
+			IsOperator:  u.IsOperator,
+			IsConnected: u.IsConnected,
+			IsDrawing:   u.IsAbleDrawing,
+			IsKicked:    u.IsKicked,
 		})
 
 	}

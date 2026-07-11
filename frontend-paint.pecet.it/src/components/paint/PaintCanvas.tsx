@@ -225,7 +225,6 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
             </div>
             <div className="flex-1 w-full h-full overflow-auto bg-gray-200">
 
-                {/* Wrapper bezpośrednio wokół canvasów, który dopasuje się do ich fizycznego rozmiaru */}
                 <div
                     className="relative shadow-lg mx-auto"
                     style={{ width: config.width, height: config.height }}
