@@ -58,11 +58,11 @@ func (p *Paint) DeleteRoom(roomIdent string) {
 
 }
 
-func (p *Paint) ListRooms() []PaintRoomInfo {
+func (p *Paint) ListRooms() []RoomInfo {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	rooms := make([]PaintRoomInfo, 0, len(p.rooms))
+	rooms := make([]RoomInfo, 0, len(p.rooms))
 	for _, room := range p.rooms {
 		rooms = append(rooms, room.Info())
 	}

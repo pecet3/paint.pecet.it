@@ -19,6 +19,10 @@ type Channel struct {
 
 	joinCh  chan *Client
 	leaveCh chan *Client
+
+	joinHandleCh  chan *Client
+	leaveHandleCh chan *Client
+
 	eventCh chan *Event
 
 	eventHandlers map[string]func(context.Context, *Event)
@@ -36,7 +40,10 @@ func NewChannel() *Channel {
 		clients: make(map[*Client]bool),
 		joinCh:  make(chan *Client, 10),
 		leaveCh: make(chan *Client, 10),
-		eventCh: make(chan *Event, 10),
+
+		joinHandleCh:  make(chan *Client, 10),
+		leaveHandleCh: make(chan *Client, 10),
+		eventCh:       make(chan *Event, 10),
 
 		eventHandlers: make(map[string]func(context.Context, *Event)),
 		joinHandlers:  []func(context.Context, *Client){},
@@ -119,19 +126,15 @@ func (r *Channel) Run(ctx context.Context) {
 					}
 				}
 			case client := <-r.leaveCh:
-
 				if len(r.leaveHandlers) > 0 {
 					for _, handle := range r.leaveHandlers {
 						go handle(ctx, client)
 					}
 				}
-
-				r.cMu.Lock()
 				if _, ok := r.clients[client]; ok {
 					delete(r.clients, client)
 					close(client.sendCh)
 				}
-				r.cMu.Unlock()
 			case msg := <-r.eventCh:
 				if handler, ok := r.eventHandlers[msg.Type]; ok {
 					go handler(ctx, msg)
@@ -140,12 +143,10 @@ func (r *Channel) Run(ctx context.Context) {
 				}
 			case <-r.closeCh:
 				r.Log("closing")
-				r.cMu.Lock()
 				for client := range r.clients {
 					close(client.sendCh)
 					delete(r.clients, client)
 				}
-				r.cMu.Unlock()
 				r.Log("removed all clients")
 				if r.cancel != nil {
 					r.Log("executing context cancel func")

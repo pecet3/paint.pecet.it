@@ -3,7 +3,6 @@ package paint
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"time"
 
 	"paint.pecet.it/pkg/ward"
@@ -18,8 +17,10 @@ type User struct {
 	IsAbleDrawing bool
 	LastChatMsgAt time.Time
 	JoinedAt      time.Time
+	WsClient      *wardsocket.Client
 }
 
+// name: ChatMessage
 type ChatMessage struct {
 	Name    string    `json:"name"`
 	Uuid    string    `json:"uuid"`
@@ -27,23 +28,23 @@ type ChatMessage struct {
 	Date    time.Time `json:"date"`
 }
 
-// name: test
+// name: ServerMessage
 type ServerMessage struct {
 	Message string    `json:"message"`
 	Date    time.Time `json:"date"`
 }
-type Message struct {
-	Message []ServerMessage `json:"message_test"`
-}
+
+// name: RoomUser
 type RoomUser struct {
 	UUID        string `json:"uuid"`
 	Name        string `json:"name"`
 	IsOperator  bool   `json:"is_operator"`
 	IsConnected bool   `json:"is_connected"`
-	IsDrawing   bool   `json:"is_drawing"`
+	IsDrawing   bool   `json:"is_draw"`
 	IsKicked    bool   `json:"is_kicked"`
 }
 
+// name: SignalPayload
 type SignalPayload struct {
 	TargetUUID string          `json:"targetUuid"`
 	SenderUUID string          `json:"senderUuid"`
@@ -53,6 +54,73 @@ type SignalPayload struct {
 
 type UserManagmentPayload struct {
 	Uuid string `json:"uuid"`
+}
+
+func (p *PaintRoom) handleUserDraw(ctx context.Context, event *wardsocket.Event) {
+	p.uMu.Lock()
+	defer p.uMu.Unlock()
+	p.Log(event)
+	eventUser, ok := p.users[event.Client.Request.User.Uuid()]
+	if !ok {
+		p.Log("user doesn't belong to room requested user managment event ", event.Client.Request.User.Uuid())
+		return
+	}
+
+	if !eventUser.IsOperator {
+		p.Log("no operator requested user managment event ", event.Client.Request.User.Uuid())
+		return
+	}
+	var payload UserManagmentPayload
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		p.Log(err)
+		return
+	}
+
+	manageUser, ok := p.users[payload.Uuid]
+	if !ok {
+		p.Log("user to manage doesn't belong to room", payload.Uuid)
+		return
+	}
+	manageUser.IsAbleDrawing = !manageUser.IsAbleDrawing
+	if manageUser.IsAbleDrawing {
+		p.BroadcastServerMessage(manageUser.WardUser.Name() + " can now draw")
+	} else {
+		p.BroadcastServerMessage(manageUser.WardUser.Name() + " can no longer draw")
+	}
+	p.BroadcastUserList()
+}
+func (p *PaintRoom) handleUserOperator(ctx context.Context, event *wardsocket.Event) {
+	p.uMu.Lock()
+	defer p.uMu.Unlock()
+	p.Log(event)
+	eventUser, ok := p.users[event.Client.Request.User.Uuid()]
+	if !ok {
+		p.Log("user doesn't belong to room requested user managment event ", event.Client.Request.User.Uuid())
+		return
+	}
+
+	if !eventUser.IsOperator {
+		p.Log("no operator requested user managment event ", event.Client.Request.User.Uuid())
+		return
+	}
+	var payload UserManagmentPayload
+	if err := json.Unmarshal(event.Payload, &payload); err != nil {
+		p.Log(err)
+		return
+	}
+
+	manageUser, ok := p.users[payload.Uuid]
+	if !ok {
+		p.Log("user to manage doesn't belong to room", payload.Uuid)
+		return
+	}
+	manageUser.IsOperator = !manageUser.IsOperator
+	if manageUser.IsOperator {
+		p.BroadcastServerMessage(manageUser.WardUser.Name() + " is now an operator")
+	} else {
+		p.BroadcastServerMessage(manageUser.WardUser.Name() + " is no longer an operator")
+	}
+	p.BroadcastUserList()
 }
 
 func (p *PaintRoom) handleUserKick(ctx context.Context, event *wardsocket.Event) {
@@ -72,77 +140,26 @@ func (p *PaintRoom) handleUserKick(ctx context.Context, event *wardsocket.Event)
 	var payload UserManagmentPayload
 	if err := json.Unmarshal(event.Payload, &payload); err != nil {
 		p.Log(err)
-
 		return
 	}
 
-	log.Println(payload)
 	manageUser, ok := p.users[payload.Uuid]
 	if !ok {
 		p.Log("user to manage doesn't belong to room", payload.Uuid)
 		return
 	}
 	manageUser.IsKicked = !manageUser.IsKicked
-
-	p.BroadcastUserList()
-}
-
-func (p *PaintRoom) handleGetAllCanvas(ctx context.Context, event *wardsocket.Event) {
-	p.cMu.RLock()
-	canvasEvent := wardsocket.ByteEvent{
-		Type:    "canvas_pixel_update",
-		Payload: append(p.getCanvasBytes(), p.saveBuf...),
-	}
-	p.cMu.RUnlock()
-
-	if data, err := json.Marshal(canvasEvent); err == nil {
-		event.Client.Send(data)
-	}
-}
-
-func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
-	p.Log(c.Request.User.Uuid(), "joined")
-
-	p.uMu.Lock()
-	defer p.uMu.Unlock()
-	uuid := c.Request.User.Uuid()
-	user, exists := p.users[uuid]
-
-	if !exists {
-		user = &User{
-			WardUser:      c.Request.User,
-			IsOperator:    len(p.users) == 0,
-			IsConnected:   true,
-			JoinedAt:      time.Now(),
-			IsAbleDrawing: true,
+	if manageUser.IsKicked {
+		manageUser.IsConnected = false
+		if manageUser.WsClient != nil {
+			outgoingEvent := []byte(`{"type":"kick_confirmation","payload":""}`)
+			manageUser.WsClient.Send(outgoingEvent)
+			p.Channel.LeaveClient(manageUser.WsClient)
 		}
-		p.users[uuid] = user
+		p.BroadcastServerMessage(manageUser.WardUser.Name() + " has been kicked")
 	} else {
-		user.IsConnected = true
-
+		p.BroadcastServerMessage(manageUser.WardUser.Name() + " is no longer kicked")
 	}
-
-	p.SendChatHistory(c)
-	p.BroadcastUserList()
-	p.BroadcastServerMessage(c.Request.User.Name() + " joined")
-
-	outgoingEvent := []byte(`{"type":"join_confirmation","payload":""}`)
-	c.Send(outgoingEvent)
-}
-
-func (p *PaintRoom) handleLeave(ctx context.Context, client *wardsocket.Client) {
-	p.Log(client.Request.LogInfo(), "left")
-	p.uMu.Lock()
-	defer p.uMu.Unlock()
-	uuid := client.Request.User.Uuid()
-	if user, exists := p.users[uuid]; exists {
-		user.IsConnected = false
-	}
-
-	p.lastLeftAt = time.Now()
-
-	p.BroadcastServerMessage(client.Request.User.Name() + " left")
-
 	p.BroadcastUserList()
 }
 
@@ -165,7 +182,7 @@ func (p *PaintRoom) handleChatMessage(ctx context.Context, event *wardsocket.Eve
 	}
 	now := time.Now()
 
-	if now.Before(user.LastChatMsgAt.Add(time.Millisecond * 2000)) {
+	if now.Before(user.LastChatMsgAt.Add(time.Millisecond * 1000)) {
 		user.LastChatMsgAt = now
 		return
 	}
@@ -196,6 +213,14 @@ func (p *PaintRoom) handlePixelUpdate(ctx context.Context, evt *wardsocket.Event
 	if len(data) == 0 || len(data)%8 != 0 {
 		return
 	}
+	uuid := evt.Client.Request.User.Uuid()
+	user, exists := p.users[uuid]
+	if !exists {
+		return
+	}
+	if !user.IsAbleDrawing {
+		return
+	}
 	out := []byte(`{"type":"canvas_pixel_update","payload":` + string(evt.Payload) + `}`)
 	p.Channel.Broadcast(out, evt.Client)
 
@@ -221,4 +246,72 @@ func (p *PaintRoom) handleSignal(ctx context.Context, e *wardsocket.Event) {
 
 	outgoingEvent := []byte(`{"type":"webrtc_signal","payload":` + string(outgoingPayloadBytes) + `}`)
 	p.Channel.Broadcast(outgoingEvent)
+}
+func (p *PaintRoom) handleGetAllCanvas(ctx context.Context, event *wardsocket.Event) {
+	p.cMu.RLock()
+	canvasEvent := wardsocket.ByteEvent{
+		Type:    "canvas_pixel_update",
+		Payload: append(p.getCanvasBytes(), p.saveBuf...),
+	}
+	p.cMu.RUnlock()
+
+	if data, err := json.Marshal(canvasEvent); err == nil {
+		event.Client.Send(data)
+	}
+}
+
+func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
+	p.Log(c.Request.User.Uuid(), "joined")
+
+	p.uMu.Lock()
+	defer p.uMu.Unlock()
+	uuid := c.Request.User.Uuid()
+	user, exists := p.users[uuid]
+
+	if !exists {
+		user = &User{
+			WardUser:      c.Request.User,
+			IsOperator:    len(p.users) == 0,
+			IsConnected:   true,
+			JoinedAt:      time.Now(),
+			IsAbleDrawing: true,
+			WsClient:      c,
+		}
+		p.users[uuid] = user
+	} else {
+		if user.IsKicked {
+			outgoingEvent := []byte(`{"type":"kick_confirmation","payload":""}`)
+			c.Send(outgoingEvent)
+			p.Channel.LeaveClient(c)
+			return
+		}
+		user.IsConnected = true
+		user.WsClient = c
+	}
+
+	p.SendChatHistory(c)
+	p.BroadcastUserList()
+	p.BroadcastServerMessage(c.Request.User.Name() + " joined the room")
+
+	outgoingEvent := []byte(`{"type":"join_confirmation","payload":""}`)
+	c.Send(outgoingEvent)
+}
+
+func (p *PaintRoom) handleLeave(ctx context.Context, client *wardsocket.Client) {
+	p.Log(client.Request.LogInfo(), "left")
+	p.uMu.Lock()
+	defer p.uMu.Unlock()
+	uuid := client.Request.User.Uuid()
+	user, exists := p.users[uuid]
+	if exists {
+		user.IsConnected = false
+		user.WsClient = nil
+	}
+
+	p.lastLeftAt = time.Now()
+
+	if !user.IsKicked {
+		p.BroadcastServerMessage(client.Request.User.Name() + " left the room")
+		p.BroadcastUserList()
+	}
 }

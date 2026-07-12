@@ -376,10 +376,10 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
             </div>
 
             {/* Panel kontrolny pod WSZYSTKIMI kafelkami wideo (Mutowanie Siebie) */}
-            <div className="flex justify-center items-center space-x-3 pt-2 border-t border-gray-800">
+            <div className="flex justify-center text-xs items-center space-x-3 pt-2 border-t border-gray-800">
                 <button
                     onClick={toggleLocalMic}
-                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all active:scale-95 flex items-center border
+                    className={`px-4 py-2  font-medium rounded-xl transition-all active:scale-95 flex items-center border
                          space-x-2 ${isMicEnabled ? "bg-gray-800 text-gray-200 hover:bg-gray-700"
                             : "bg-red-900/60 text-red-200 hover:bg-red-800 border border-red-700"
                         }`}
@@ -390,7 +390,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
 
                 <button
                     onClick={toggleLocalCam}
-                    className={`px-4 py-2 text-sm font-medium rounded-xl transition-all border
+                    className={`px-4 py-2  font-medium rounded-xl transition-all border
                         active:scale-95 flex items-center space-x-2
                          ${isCamEnabled ? "bg-gray-800 text-gray-200 hover:bg-gray-700"
                             : "bg-red-900/60 text-red-200 hover:bg-red-800 border border-red-700"

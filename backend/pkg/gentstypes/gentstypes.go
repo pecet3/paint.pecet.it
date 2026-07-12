@@ -11,13 +11,15 @@ import (
 )
 
 type goField struct {
-	goName  string // Uuid string `json:"uuid"` = Uuid
-	goType  string // string, bool, int etc or raw name of struct if it's nested
-	tag     string // Uuid string `json:"uuid"` = json:"uuid"
-	comment string // if above field is comment put it here
+	parentGoStruct *goStruct
+	goName         string // Uuid string `json:"uuid"` = Uuid
+	goType         string // string, bool, int etc or raw name of struct if it's nested
+	tag            string // Uuid string `json:"uuid"` = json:"uuid"
+	comment        string // if above field is comment put it here
 }
 
 type goStruct struct {
+	refCounter      uint
 	alternativeName string
 	ident           string // packageName + "." + structName
 	structName      string // golang struct name
@@ -157,14 +159,26 @@ func processRawFields(structsMap map[string]*goStruct) {
 	for _, t := range structsMap {
 		for _, raw := range t.rawFields {
 			if strings.Contains(raw, "json:") {
-				field := parseRawField(raw)
+				field := t.parseRawField(raw)
+				if _, ok := structsMap[field.lookupIdent()]; ok {
+					t.refCounter += 1
+				}
 				t.fields = append(t.fields, field)
 			}
 		}
 	}
 }
 
-func parseRawField(raw string) goField {
+func structsWithTheSameName(goStructName string, structsMap map[string]*goStruct) (structs []*goStruct) {
+	for _, str := range structsMap {
+		if str.structName == goStructName {
+			structs = append(structs, str)
+		}
+	}
+	return
+}
+
+func (s *goStruct) parseRawField(raw string) goField {
 	var field goField
 
 	if strings.HasPrefix(raw, "COMMENT:") {
@@ -196,21 +210,46 @@ func parseRawField(raw string) goField {
 	if len(tokens) >= 3 {
 		field.tag = strings.Join(tokens[2:], " ")
 	}
-
+	field.parentGoStruct = s
 	return field
 }
 
+func (f *goField) baseType() (baseType string) {
+	baseType = strings.ReplaceAll(f.goType, "[]", "")
+	baseType = strings.ReplaceAll(baseType, "*", "")
+	return
+}
+func (f *goField) lookupIdent() (lookupIdent string) {
+	baseType := f.baseType()
+	if strings.Contains(baseType, ".") {
+		lookupIdent = baseType
+	} else {
+		lookupIdent = f.parentGoStruct.packageName + "." + baseType
+	}
+	return
+}
+func (goStr *goStruct) tsName(structsMap map[string]*goStruct) (name string) {
+	if structs := structsWithTheSameName(goStr.structName, structsMap); len(structs) > 0 {
+		if len(structs) == 1 {
+			name = goStr.structName
+		} else {
+			name = formatTSName(goStr.packageName, goStr.structName)
+		}
+	}
+	if goStr.alternativeName != "" {
+		name = goStr.alternativeName
+	}
+	return
+}
 func buildTSTypes(structsMap map[string]*goStruct) []tsType {
 	var tsTypes []tsType
 
 	for _, goStr := range structsMap {
 		tType := tsType{
-			name:    formatTSName(goStr.packageName, goStr.structName),
+			name:    goStr.tsName(structsMap),
 			comment: goStr.comment,
 		}
-		if goStr.alternativeName != "" {
-			tType.name = goStr.alternativeName
-		}
+
 		for _, f := range goStr.fields {
 			tsF := tsField{
 				tsName:        extractJSONName(f.tag),
@@ -224,22 +263,10 @@ func buildTSTypes(structsMap map[string]*goStruct) []tsType {
 
 			isSlice := strings.Contains(f.goType, "[]")
 
-			baseType := strings.ReplaceAll(f.goType, "[]", "")
-			baseType = strings.ReplaceAll(baseType, "*", "")
+			baseType := f.baseType()
 
-			var lookupIdent string
-			if strings.Contains(baseType, ".") {
-				lookupIdent = baseType
-			} else {
-				lookupIdent = goStr.packageName + "." + baseType
-			}
-
-			if targetStruct, exists := structsMap[lookupIdent]; exists {
-				if targetStruct.alternativeName != "" {
-					tsF.tsType = targetStruct.alternativeName
-				} else {
-					tsF.tsType = formatTSName(targetStruct.packageName, targetStruct.structName)
-				}
+			if targetStruct, exists := structsMap[f.lookupIdent()]; exists {
+				tsF.tsType = targetStruct.tsName(structsMap)
 
 			} else {
 				tsF.tsType = mapBasicType(baseType)
@@ -264,7 +291,6 @@ func generateTSFile(tsTypes []tsType, outputPath string) {
 	var sb strings.Builder
 
 	for _, t := range tsTypes {
-		fmt.Printf(`%s %s\n`, t.name, t.comment)
 		if t.comment != "" {
 			sb.WriteString("// ")
 			sb.WriteString(t.comment)
@@ -372,10 +398,6 @@ func Exec(inputDir string, outputFile string, flags ...string) {
 		os.Exit(1)
 	}
 	processRawFields(structsMap)
-	fmt.Println(outputFile)
-	for _, goStruct := range structsMap {
-		fmt.Println(goStruct.ident, goStruct.comment)
-	}
 	tsTypes := buildTSTypes(structsMap)
 	generateTSFile(tsTypes, outputFile)
 }
@@ -383,7 +405,6 @@ func Run() {
 	if len(os.Args) < 3 {
 		os.Exit(1)
 	}
-
 	inputDir := os.Args[1]
 	outputFile := os.Args[2]
 	Exec(inputDir, outputFile)

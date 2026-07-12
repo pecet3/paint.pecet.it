@@ -1,6 +1,7 @@
 package paint
 
-type PaintRoomInfo struct {
+// name: RoomInfo
+type RoomInfo struct {
 	Name        string `json:"name"`
 	IsTemporary bool   `json:"is_temporary"`
 	OnlineUsers int    `json:"online_users"`
@@ -8,6 +9,8 @@ type PaintRoomInfo struct {
 	Width       int    `json:"width"`
 	Height      int    `json:"height"`
 }
+
+// name: RoomConfig
 type RoomConfig struct {
 	Name        string `json:"name" validate:"required,min=3,max=32"`
 	IsTemporary bool   `json:"is_temporary" validate:"omitempty"`

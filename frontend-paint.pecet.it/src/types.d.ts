@@ -38,7 +38,7 @@ export interface RoomUser {
     name: string;
     is_operator: boolean;
     is_connected: boolean;
-    is_drawing: boolean;
+    is_draw: boolean;
     is_kicked: boolean;
 }
 

@@ -24,6 +24,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
   const [isWebRTC, setIsWebRTC] = useState(false)
   const [reconnectCounter, setReconnectCounter] = useState(0)
 
+  const [isDraw, setIsDraw] = useState(false)
   useEffect(() => {
     ws.current = new WebSocket("/api/join-room/" + roomInfo.name);
 
@@ -43,9 +44,6 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
         case "update_users_list":
           setUsers(data.payload);
           break;
-        case "update_is_operator":
-        case "update_ban_duration":
-          break;
         case "webrtc_signal":
           if (webrtcRef.current) {
             webrtcRef.current.receiveSignal(data.payload as WebRTCSignalPayload);
@@ -53,6 +51,10 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
           break;
         case "join_confirmation":
           setIsJoined(true);
+          break;
+        case "kick_confirmation":
+          alert("you are kicked from this room")
+          navigate("/");
           break;
         default:
           console.warn(data.type);
@@ -62,9 +64,10 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
     ws.current.onclose = (evt: CloseEvent) => {
       if (reconnectCounter < 5) {
         console.log("ws conn closed, reconnecting: ", reconnectCounter)
-        ws.current = new WebSocket("/api/rooms/" + roomInfo);
+        ws.current = new WebSocket("/api/join-room/" + roomInfo.name);
         setReconnectCounter(reconnectCounter + 1)
       } else {
+
         navigate("/");
       }
 
@@ -76,11 +79,16 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
 
   useEffect(() => {
     if (isJoined) {
+      let timer1 = setTimeout(() => setIsWebRTC(true), 1000);
       handleGetAllCanvas();
-      setIsWebRTC(true)
+      return () => {
+        clearTimeout(timer1)
+      }
     }
   }, [isJoined]);
-
+  useEffect(() => {
+    users.forEach(u => u.uuid === user?.uuid && setIsDraw(u.is_draw))
+  }, [users]);
   const handleSendChatMessage = (msg: string) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type: "chat_message", payload: { message: msg } }));
@@ -99,7 +107,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
   };
   const handleUserCanDrawing = (uuid: string) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({ type: "user_drawing", payload: { uuid } }));
+      ws.current.send(JSON.stringify({ type: "user_draw", payload: { uuid } }));
     }
   };
 
@@ -115,6 +123,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
     }
   };
   const handleSendPixelUpdateWS = (pixels: Pixel[]) => {
+    if (!isDraw) return;
     const base64Payload = encodePixelsToBase64(pixels);
     if (ws.current?.readyState === WebSocket.OPEN)
       ws.current.send(JSON.stringify({
@@ -143,6 +152,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
   };
 
   const handleSendPixelUpdateRTC = (pixels: Pixel[]) => {
+    if (!isDraw) return;
     const base64Payload = encodePixelsToBase64(pixels);
     if (isWebRTC) {
       if (webrtcRef.current) {
@@ -193,7 +203,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
               />}
 
           <div className="flex flex-col items-center m-auto h-full w-full justify-between">
-            {isWebRTC ?
+            {isWebRTC && isConnect ?
               (
                 <>
                   <WebRTCManager
@@ -205,13 +215,12 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
 
                 </>
               )
-              :
+              : null}
 
-              serverMessage && (
-                <div className="flex text-xl justify-center">
-                  {serverMessage.message}
-                </div>
-              )}
+            <div className="flex text-xl justify-center">
+              {serverMessage!.message && serverMessage!.message}
+            </div>
+
             <Chat
               users={users}
               messages={chatMessages}
@@ -256,8 +265,8 @@ export const Room = () => {
   };
 
   useEffect(() => {
-    fetchRoom();
-  }, []);
+    roomName !== undefined && fetchRoom();
+  }, [roomName]);
 
 
   return (

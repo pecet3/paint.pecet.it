@@ -65,13 +65,15 @@ export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage, oper
                     {users.map((user) => (
                         <div key={user.uuid} className={`flex flex-col items-start pl-0.5 gap-0.5 text-xs ${uuidToManage === user.uuid && "bg-slate-900"}`}>
                             <div className="flex items-center gap-0.5 text-xs tracking-tighter">
-                                <span className={`w-1.5 h-1.5 rounded-full ${user.is_connected ? "bg-green-500" : "bg-gray-400"}`} />
-                                {user.is_drawing && "🎨"}
+                                <span className={`w-1.5 h-1.5 rounded-full ${user.is_connected ? "bg-green-500" : user.is_kicked ? "bg-red-500" : "bg-gray-400"}`} />
+                                {user.is_draw && "🎨"}
                                 <span className="truncate">{user.name.slice(0, 16)}</span>
                                 {user.is_operator && <span className="text-[8px] tracking-wide bg-blue-100 text-blue-600 px-1 rounded">OP</span>}
                                 {isOp && <button onClick={() => {
                                     uuidToManage === user.uuid ? setUuidToManage("") : setUuidToManage(user.uuid)
                                 }} className="cursor-pointer ">⚙️</button>}
+                                {user.is_kicked && <span className="text-[10px] font-mono">[kicked]</span>}
+
                             </div>
                             {uuidToManage === user.uuid &&
                                 <div className="flex w-full font-mono tracking-tighter items-center gap-0.5 text-xs bg-slate-900 m-0 justify-evenly">

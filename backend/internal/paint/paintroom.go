@@ -46,9 +46,10 @@ func (p *PaintRoom) RegisterHandlers() {
 	p.Channel.RegisterEventHandler("webrtc_signal", p.handleSignal)
 
 	p.Channel.RegisterEventHandler("user_kick", p.handleUserKick)
-
+	p.Channel.RegisterEventHandler("user_operator", p.handleUserOperator)
+	p.Channel.RegisterEventHandler("user_draw", p.handleUserDraw)
 }
-func (p *PaintRoom) Info() PaintRoomInfo {
+func (p *PaintRoom) Info() RoomInfo {
 	p.uMu.RLock()
 	defer p.uMu.RUnlock()
 
@@ -59,7 +60,7 @@ func (p *PaintRoom) Info() PaintRoomInfo {
 		}
 	}
 
-	return PaintRoomInfo{
+	return RoomInfo{
 		Name:        p.cfg.Name,
 		IsTemporary: p.cfg.IsTemporary,
 		OnlineUsers: onlineUsers,
@@ -80,7 +81,7 @@ func (p *PaintRoom) Log(v ...any) {
 
 func (p *PaintRoom) Run(pm *Paint, ctx context.Context) {
 	go func() {
-		p.Log("is listening")
+		p.Log("running")
 		saveTicker := time.NewTicker(1000 * 3 * time.Millisecond)
 		syncTicker := time.NewTicker(1000 * 20 * time.Millisecond)
 		defer func() {
