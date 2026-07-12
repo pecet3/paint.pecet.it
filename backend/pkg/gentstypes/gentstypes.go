@@ -18,19 +18,21 @@ type goField struct {
 }
 
 type goStruct struct {
-	ident       string // packageName + "." + structName
-	structName  string // golang struct name
-	file        string // path to file where is struct
-	packageName string // go package name from struct comes
-	comment     string // if above struct is comment put it here
-	fields      []goField
-	rawFields   []string // whole lines Uuid string `json:"uuid"` = Uuid string `json:"uuid"` = Uuid
+	alternativeName string
+	ident           string // packageName + "." + structName
+	structName      string // golang struct name
+	file            string // path to file where is struct
+	packageName     string // go package name from struct comes
+	comment         string // if above struct is comment put it here
+	fields          []goField
+	rawFields       []string // whole lines Uuid string `json:"uuid"` = Uuid string `json:"uuid"` = Uuid
 }
 
 type tsField struct {
-	tsName  string // comes from json tag
-	tsType  string // string, boolean, number. if nested tsType.name.
-	comment string // if above field is comment put it hered
+	tsName        string // comes from json tag
+	tsType        string // string, boolean, number. if nested tsType.name.
+	comment       string // if above field is comment put it hered
+	inlineComment string
 }
 type tsType struct {
 	name    string //packageName with first char toUpper + goStruct.structName with first char toUpper example - AuthUser
@@ -38,44 +40,6 @@ type tsType struct {
 	comment string
 }
 
-func Run() {
-	if len(os.Args) < 3 {
-		os.Exit(1)
-	}
-
-	inputDir := os.Args[1]
-	outputFile := os.Args[2]
-
-	structsMap := make(map[string]*goStruct)
-
-	err := filepath.Walk(inputDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(info.Name(), ".go") {
-			return nil
-		}
-		if strings.HasSuffix(info.Name(), "_test.go") {
-			return nil
-		}
-		parseFile(path, structsMap)
-		return nil
-	})
-	if err != nil {
-		os.Exit(1)
-	}
-
-	processRawFields(structsMap)
-	fmt.Println(outputFile)
-	for _, goStruct := range structsMap {
-		fmt.Println(goStruct.ident, goStruct.fields)
-	}
-	tsTypes := buildTSTypes(structsMap)
-	generateTSFile(tsTypes, outputFile)
-}
 func parseFile(path string, structsMap map[string]*goStruct) {
 	file, err := os.Open(path)
 	if err != nil {
@@ -86,6 +50,7 @@ func parseFile(path string, structsMap map[string]*goStruct) {
 	scanner := bufio.NewScanner(file)
 	var packageName string
 	var currentComment string
+	var alternativeName string
 	var currentStruct *goStruct
 	inStruct := false
 	braceCount := 0
@@ -101,6 +66,13 @@ func parseFile(path string, structsMap map[string]*goStruct) {
 
 		if strings.HasPrefix(trimmed, "//") {
 			c := strings.TrimSpace(strings.TrimPrefix(trimmed, "//"))
+			if strings.HasPrefix(c, "name:") {
+				parts := strings.Fields(c)
+				if len(parts) >= 2 {
+					alternativeName = parts[1]
+					continue
+				}
+			}
 			if currentComment != "" {
 				currentComment += "\n" + c
 			} else {
@@ -128,15 +100,17 @@ func parseFile(path string, structsMap map[string]*goStruct) {
 				braceCount = 1
 
 				currentStruct = &goStruct{
-					ident:       packageName + "." + structName,
-					structName:  structName,
-					file:        path,
-					packageName: packageName,
-					comment:     currentComment,
+					ident:           packageName + "." + structName,
+					structName:      structName,
+					file:            path,
+					packageName:     packageName,
+					comment:         currentComment,
+					alternativeName: alternativeName,
 				}
 				structs = append(structs, currentStruct)
 			}
 			currentComment = ""
+			alternativeName = ""
 			continue
 		}
 
@@ -234,11 +208,14 @@ func buildTSTypes(structsMap map[string]*goStruct) []tsType {
 			name:    formatTSName(goStr.packageName, goStr.structName),
 			comment: goStr.comment,
 		}
-
+		if goStr.alternativeName != "" {
+			tType.name = goStr.alternativeName
+		}
 		for _, f := range goStr.fields {
 			tsF := tsField{
-				tsName:  extractJSONName(f.tag),
-				comment: f.comment,
+				tsName:        extractJSONName(f.tag),
+				comment:       f.comment,
+				inlineComment: f.tag,
 			}
 
 			if tsF.tsName == "" || tsF.tsName == "-" {
@@ -258,7 +235,12 @@ func buildTSTypes(structsMap map[string]*goStruct) []tsType {
 			}
 
 			if targetStruct, exists := structsMap[lookupIdent]; exists {
-				tsF.tsType = formatTSName(targetStruct.packageName, targetStruct.structName)
+				if targetStruct.alternativeName != "" {
+					tsF.tsType = targetStruct.alternativeName
+				} else {
+					tsF.tsType = formatTSName(targetStruct.packageName, targetStruct.structName)
+				}
+
 			} else {
 				tsF.tsType = mapBasicType(baseType)
 			}
@@ -282,6 +264,12 @@ func generateTSFile(tsTypes []tsType, outputPath string) {
 	var sb strings.Builder
 
 	for _, t := range tsTypes {
+		fmt.Printf(`%s %s\n`, t.name, t.comment)
+		if t.comment != "" {
+			sb.WriteString("// ")
+			sb.WriteString(t.comment)
+			sb.WriteString("\n")
+		}
 		sb.WriteString("export type ")
 		sb.WriteString(t.name)
 		sb.WriteString(" = {\n")
@@ -299,7 +287,12 @@ func generateTSFile(tsTypes []tsType, outputPath string) {
 			sb.WriteString(f.tsName)
 			sb.WriteString(": ")
 			sb.WriteString(f.tsType)
-			sb.WriteString(";\n")
+			sb.WriteString(";")
+			if f.inlineComment != "" {
+				sb.WriteString(" // ")
+				sb.WriteString(f.inlineComment)
+			}
+			sb.WriteString("\n")
 		}
 		sb.WriteString("}\n\n")
 	}
@@ -354,4 +347,44 @@ func mapBasicType(goType string) string {
 	default:
 		return "any"
 	}
+}
+
+func Exec(inputDir string, outputFile string, flags ...string) {
+	structsMap := make(map[string]*goStruct)
+
+	err := filepath.Walk(inputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		if !strings.HasSuffix(info.Name(), ".go") {
+			return nil
+		}
+		if strings.HasSuffix(info.Name(), "_test.go") {
+			return nil
+		}
+		parseFile(path, structsMap)
+		return nil
+	})
+	if err != nil {
+		os.Exit(1)
+	}
+	processRawFields(structsMap)
+	fmt.Println(outputFile)
+	for _, goStruct := range structsMap {
+		fmt.Println(goStruct.ident, goStruct.comment)
+	}
+	tsTypes := buildTSTypes(structsMap)
+	generateTSFile(tsTypes, outputFile)
+}
+func Run() {
+	if len(os.Args) < 3 {
+		os.Exit(1)
+	}
+
+	inputDir := os.Args[1]
+	outputFile := os.Args[2]
+	Exec(inputDir, outputFile)
 }

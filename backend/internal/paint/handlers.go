@@ -20,7 +20,6 @@ type User struct {
 	JoinedAt      time.Time
 }
 
-// COMMENT: asa
 type ChatMessage struct {
 	Name    string    `json:"name"`
 	Uuid    string    `json:"uuid"`
@@ -28,11 +27,14 @@ type ChatMessage struct {
 	Date    time.Time `json:"date"`
 }
 
+// name: test
 type ServerMessage struct {
 	Message string    `json:"message"`
 	Date    time.Time `json:"date"`
 }
-
+type Message struct {
+	Message []ServerMessage `json:"message_test"`
+}
 type RoomUser struct {
 	UUID        string `json:"uuid"`
 	Name        string `json:"name"`

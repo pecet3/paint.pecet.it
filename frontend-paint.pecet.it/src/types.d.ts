@@ -38,7 +38,8 @@ export interface RoomUser {
     name: string;
     is_operator: boolean;
     is_connected: boolean;
-    is_able_drawing: boolean;
+    is_drawing: boolean;
+    is_kicked: boolean;
 }
 
 export interface WebRTCSignalPayload {
