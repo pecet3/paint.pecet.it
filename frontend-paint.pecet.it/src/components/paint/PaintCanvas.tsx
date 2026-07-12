@@ -180,7 +180,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     return (
         <div className="bg-slate-700 p-2 rounded-lg w-full border border-black flex flex-col items-center max-w-4xl max-h-[92vh] h-full">
 
-            <div className='flex items-end justify-between w-full m-auto'>
+            <div className='flex items-end justify-between w-full m-auto flex-wrap'>
                 <div className="flex gap-1">
                     <label className="flex items-center">
                         Tool:
@@ -233,7 +233,8 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                         ref={mainCanvasRef}
                         width={config.width}
                         height={config.height}
-                        className={`absolute top-0 left-0 border-gray-800 bg-white ${tool === 'text' ? 'cursor-text' : 'cursor-crosshair'
+                        className={`absolute top-0 left-0
+                             border-gray-800 bg-white ${tool === 'text' ? 'cursor-text' : 'cursor-crosshair'
                             }`}
                         onMouseDown={(e) => handleMouseEvent(e, 'start')}
                         onMouseMove={(e) => handleMouseEvent(e, 'draw')}

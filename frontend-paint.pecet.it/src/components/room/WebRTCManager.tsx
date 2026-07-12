@@ -117,7 +117,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { width: { ideal: 320, max: 480 }, height: { ideal: 240, max: 360 }, frameRate: { ideal: 10, max: 15 } },
-                    audio: { sampleRate: 16000, echoCancellation: true, noiseSuppression: true }
+                    audio: { sampleRate: 16000, echoCancellation: true, noiseSuppression: true },
                 });
 
                 if (isMounted) {
@@ -243,7 +243,10 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
                 peerData.pc.createOffer()
                     .then(offer => peerData.pc.setLocalDescription(offer))
                     .then(() => {
-                        onSendSignal({ targetUuid: u.uuid, senderUuid: localUserUuid, signalType: "offer", data: peerData.pc.localDescription });
+                        onSendSignal({
+                            targetUuid: u.uuid, senderUuid: localUserUuid, signalType: "offer",
+                            data: peerData.pc.localDescription
+                        });
                     })
                     .catch(err => console.error("Błąd tworzenia oferty dla", u.uuid, err));
             }
@@ -351,7 +354,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
             )}
 
             {/* Siatka z samymi kafelkami wideo */}
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3  gap-4">
 
                 {/* Twoje wideo */}
                 <VideoPlayer stream={localStreamDisplay} muted={true} label="You" />

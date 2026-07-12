@@ -61,7 +61,7 @@ export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage, oper
         <div className="bg-slate-700 rounded-lg m-auto border border-black flex max-w-2xl w-full h-64">
             <div className="w-1/3 border-r border-gray-400 flex flex-col items-center bg-slate-800 rounded-l-lg">
                 <h2 className="font-bold text-sm border-b w-full border-b-gray-400">Users</h2>
-                <div className="flex flex-col gap-2 overflow-y-auto m-0 w-full">
+                <div className="flex flex-col gap-1 overflow-y-auto m-0 w-full">
                     {users.map((user) => (
                         <div key={user.uuid} className={`flex flex-col items-start pl-0.5 gap-0.5 text-xs ${uuidToManage === user.uuid && "bg-slate-900"}`}>
                             <div className="flex items-center gap-0.5 text-xs tracking-tighter">

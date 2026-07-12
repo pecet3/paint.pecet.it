@@ -59,7 +59,6 @@ type UserManagmentPayload struct {
 func (p *PaintRoom) handleUserDraw(ctx context.Context, event *wardsocket.Event) {
 	p.uMu.Lock()
 	defer p.uMu.Unlock()
-	p.Log(event)
 	eventUser, ok := p.users[event.Client.Request.User.Uuid()]
 	if !ok {
 		p.Log("user doesn't belong to room requested user managment event ", event.Client.Request.User.Uuid())
@@ -92,7 +91,6 @@ func (p *PaintRoom) handleUserDraw(ctx context.Context, event *wardsocket.Event)
 func (p *PaintRoom) handleUserOperator(ctx context.Context, event *wardsocket.Event) {
 	p.uMu.Lock()
 	defer p.uMu.Unlock()
-	p.Log(event)
 	eventUser, ok := p.users[event.Client.Request.User.Uuid()]
 	if !ok {
 		p.Log("user doesn't belong to room requested user managment event ", event.Client.Request.User.Uuid())
@@ -126,7 +124,6 @@ func (p *PaintRoom) handleUserOperator(ctx context.Context, event *wardsocket.Ev
 func (p *PaintRoom) handleUserKick(ctx context.Context, event *wardsocket.Event) {
 	p.uMu.Lock()
 	defer p.uMu.Unlock()
-	p.Log(event)
 	eventUser, ok := p.users[event.Client.Request.User.Uuid()]
 	if !ok {
 		p.Log("user doesn't belong to room requested user managment event ", event.Client.Request.User.Uuid())
