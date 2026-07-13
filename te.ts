@@ -1,44 +1,3 @@
-export type SignalPayload = {
-	targetUuid: string; // `json:"targetUuid"`
-	senderUuid: string; // `json:"senderUuid"`
-	signalType: string; // `json:"signalType"`
-	data: any; // `json:"data"`
-}
-
-export type UserManagmentPayload = {
-	uuid: string; // `json:"uuid"`
-}
-
-export type RoomUser = {
-	uuid: string; // `json:"uuid"`
-	name: string; // `json:"name"`
-	is_operator: boolean; // `json:"is_operator"`
-	is_connected: boolean; // `json:"is_connected"`
-	is_draw: boolean; // `json:"is_draw"`
-	is_kicked: boolean; // `json:"is_kicked"`
-}
-
-export type User = {
-	uuid: string; // `json:"uuid"`
-	name: string; // `json:"name"`
-	rank: number; // `json:"rank"`
-}
-
-export type LoginRequest = {
-	name: string; // `json:"name" validate:"required,min=2,max=32"`
-	password: string; // `json:"password,omitempty"`
-}
-
-export type Event = {
-	type: string; // `json:"type"`
-	payload: any; // `json:"payload"`
-}
-
-export type ByteEvent = {
-	type: string; // `json:"type"`
-	payload: any[]; // `json:"payload"`
-}
-
 export type RoomInfo = {
 	name: string; // `json:"name"`
 	is_temporary: boolean; // `json:"is_temporary"`
@@ -63,8 +22,49 @@ export type ChatMessage = {
 	date: string; // `json:"date"`
 }
 
+export type UserManagmentPayload = {
+	uuid: string; // `json:"uuid"`
+}
+
+export type LoginRequest = {
+	name: string; // `json:"name" validate:"required,min=2,max=32"`
+	password: string; // `json:"password,omitempty"`
+}
+
 export type ServerMessage = {
 	message: string; // `json:"message"`
 	date: string; // `json:"date"`
+}
+
+export type RoomUser = {
+	uuid: string; // `json:"uuid"`
+	name: string; // `json:"name"`
+	is_operator: boolean; // `json:"is_operator"`
+	is_connected: boolean; // `json:"is_connected"`
+	is_draw: boolean; // `json:"is_draw"`
+	is_kicked: boolean; // `json:"is_kicked"`
+}
+
+export type SignalPayload = {
+	targetUuid: string; // `json:"targetUuid"`
+	senderUuid: string; // `json:"senderUuid"`
+	signalType: string; // `json:"signalType"`
+	data: any; // `json:"data"`
+}
+
+export type User = {
+	uuid: string; // `json:"uuid"`
+	name: string; // `json:"name"`
+	rank: number; // `json:"rank"`
+}
+
+export type Event = {
+	type: string; // `json:"type"`
+	payload: any; // `json:"payload"`
+}
+
+export type ByteEvent = {
+	type: string; // `json:"type"`
+	payload: any[]; // `json:"payload"`
 }
 

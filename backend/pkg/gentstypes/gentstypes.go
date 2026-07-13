@@ -2,6 +2,7 @@ package gentstypes
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,39 +11,55 @@ import (
 	"unicode"
 )
 
+var structsMap = make(map[string]*goStruct)
+var flags = Flags{
+	IsTagInComment:          true,
+	IsNameStartsWithPkgName: false,
+	IsComments:              true,
+}
+
+type Flags struct {
+	// struct tag included in comment DEFAULT: true
+	IsTagInComment bool
+	// always starts type name with go package name DEFAULT: false
+	IsNameStartsWithPkgName bool
+	// include go comments DEFAULT: true
+	IsComments bool
+}
+
 type goField struct {
 	parentGoStruct *goStruct
-	goName         string // Uuid string `json:"uuid"` = Uuid
-	goType         string // string, bool, int etc or raw name of struct if it's nested
-	tag            string // Uuid string `json:"uuid"` = json:"uuid"
-	comment        string // if above field is comment put it here
+	goName         string
+	goType         string
+	tag            string
+	comment        string
 }
 
 type goStruct struct {
 	refCounter      uint
 	alternativeName string
-	ident           string // packageName + "." + structName
-	structName      string // golang struct name
-	file            string // path to file where is struct
-	packageName     string // go package name from struct comes
-	comment         string // if above struct is comment put it here
+	ident           string
+	structName      string
+	file            string
+	packageName     string
+	comment         string
 	fields          []goField
-	rawFields       []string // whole lines Uuid string `json:"uuid"` = Uuid string `json:"uuid"` = Uuid
+	rawFields       []string
 }
 
 type tsField struct {
-	tsName        string // comes from json tag
-	tsType        string // string, boolean, number. if nested tsType.name.
-	comment       string // if above field is comment put it hered
+	tsName        string
+	tsType        string
+	comment       string
 	inlineComment string
 }
 type tsType struct {
-	name    string //packageName with first char toUpper + goStruct.structName with first char toUpper example - AuthUser
+	name    string
 	fields  []tsField
 	comment string
 }
 
-func parseFile(path string, structsMap map[string]*goStruct) {
+func parseFile(path string) {
 	file, err := os.Open(path)
 	if err != nil {
 		return
@@ -155,7 +172,7 @@ func parseFile(path string, structsMap map[string]*goStruct) {
 	}
 }
 
-func processRawFields(structsMap map[string]*goStruct) {
+func processRawFields() {
 	for _, t := range structsMap {
 		for _, raw := range t.rawFields {
 			if strings.Contains(raw, "json:") {
@@ -169,7 +186,7 @@ func processRawFields(structsMap map[string]*goStruct) {
 	}
 }
 
-func structsWithTheSameName(goStructName string, structsMap map[string]*goStruct) (structs []*goStruct) {
+func structsWithTheSameName(goStructName string) (structs []*goStruct) {
 	for _, str := range structsMap {
 		if str.structName == goStructName {
 			structs = append(structs, str)
@@ -228,12 +245,13 @@ func (f *goField) lookupIdent() (lookupIdent string) {
 	}
 	return
 }
-func (goStr *goStruct) tsName(structsMap map[string]*goStruct) (name string) {
-	if structs := structsWithTheSameName(goStr.structName, structsMap); len(structs) > 0 {
-		if len(structs) == 1 {
-			name = goStr.structName
-		} else {
-			name = formatTSName(goStr.packageName, goStr.structName)
+func (goStr *goStruct) tsName() (name string) {
+	name = formatTSName(goStr.packageName, goStr.structName)
+	if !flags.IsNameStartsWithPkgName {
+		if structs := structsWithTheSameName(goStr.structName); len(structs) > 0 {
+			if len(structs) == 1 {
+				name = goStr.structName
+			}
 		}
 	}
 	if goStr.alternativeName != "" {
@@ -241,20 +259,26 @@ func (goStr *goStruct) tsName(structsMap map[string]*goStruct) (name string) {
 	}
 	return
 }
-func buildTSTypes(structsMap map[string]*goStruct) []tsType {
+
+func buildTSTypes() []tsType {
 	var tsTypes []tsType
 
 	for _, goStr := range structsMap {
 		tType := tsType{
-			name:    goStr.tsName(structsMap),
-			comment: goStr.comment,
+			name: goStr.tsName(),
 		}
-
+		if flags.IsComments {
+			tType.comment = goStr.comment
+		}
 		for _, f := range goStr.fields {
 			tsF := tsField{
-				tsName:        extractJSONName(f.tag),
-				comment:       f.comment,
-				inlineComment: f.tag,
+				tsName: extractJSONName(f.tag),
+			}
+			if flags.IsComments {
+				tsF.comment = goStr.comment
+			}
+			if flags.IsTagInComment {
+				tsF.inlineComment = f.tag
 			}
 
 			if tsF.tsName == "" || tsF.tsName == "-" {
@@ -266,7 +290,7 @@ func buildTSTypes(structsMap map[string]*goStruct) []tsType {
 			baseType := f.baseType()
 
 			if targetStruct, exists := structsMap[f.lookupIdent()]; exists {
-				tsF.tsType = targetStruct.tsName(structsMap)
+				tsF.tsType = targetStruct.tsName()
 
 			} else {
 				tsF.tsType = mapBasicType(baseType)
@@ -281,9 +305,7 @@ func buildTSTypes(structsMap map[string]*goStruct) []tsType {
 		if len(goStr.fields) > 0 && len(tType.fields) > 0 {
 			tsTypes = append(tsTypes, tType)
 		}
-
 	}
-
 	return tsTypes
 }
 
@@ -375,9 +397,10 @@ func mapBasicType(goType string) string {
 	}
 }
 
-func Exec(inputDir string, outputFile string, flags ...string) {
-	structsMap := make(map[string]*goStruct)
-
+func Exec(inputDir string, outputFile string, f ...Flags) {
+	if f != nil {
+		flags = f[0]
+	}
 	err := filepath.Walk(inputDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -391,21 +414,34 @@ func Exec(inputDir string, outputFile string, flags ...string) {
 		if strings.HasSuffix(info.Name(), "_test.go") {
 			return nil
 		}
-		parseFile(path, structsMap)
+		parseFile(path)
 		return nil
 	})
 	if err != nil {
 		os.Exit(1)
 	}
-	processRawFields(structsMap)
-	tsTypes := buildTSTypes(structsMap)
+	processRawFields()
+	tsTypes := buildTSTypes()
 	generateTSFile(tsTypes, outputFile)
 }
+
 func Run() {
-	if len(os.Args) < 3 {
+	if len(os.Args) < 2 {
 		os.Exit(1)
 	}
-	inputDir := os.Args[1]
-	outputFile := os.Args[2]
+	flags.IsTagInComment = *flag.Bool("tags", false, "struct tag included in comment")
+	flags.IsNameStartsWithPkgName = *flag.Bool("starts-pkg", false, "always starts type name with go package name")
+	flags.IsComments = *flag.Bool("comments", true, "include go comments in the output")
+
+	flag.Parse()
+	remainingArgs := flag.Args()
+
+	if len(remainingArgs) < 2 {
+		fmt.Println("usage: <flags> <inputDir> <outputFile>")
+		os.Exit(1)
+	}
+
+	inputDir := remainingArgs[0]
+	outputFile := remainingArgs[1]
 	Exec(inputDir, outputFile)
 }

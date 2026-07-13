@@ -61,7 +61,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
       }
     };
 
-    ws.current.onclose = (evt: CloseEvent) => {
+    ws.current.onclose = () => {
       if (reconnectCounter < 5) {
         console.log("ws conn closed, reconnecting: ", reconnectCounter)
         ws.current = new WebSocket("/api/join-room/" + roomInfo.name);
