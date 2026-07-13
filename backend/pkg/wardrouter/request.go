@@ -81,6 +81,11 @@ func GetWardRequest(req *http.Request) *Request {
 		Http:       req,
 	}
 }
+
+func GetAssignedUser[U any](user U) U {
+	return user
+}
+
 func (r *Request) AssignUser(user User) {
 	r.User = user
 	r.Log("UserUUID:", r.User.Uuid(), "UserName:", r.User.Name())

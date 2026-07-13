@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"log"
 
-	"paint.pecet.it/internal/paint"
+	"paint.pecet.it/internal/pkg/paint"
 	"paint.pecet.it/pkg/ward"
 )
 
@@ -44,5 +44,5 @@ func (api *Api) handleCreateRoom(wreq *ward.Request) {
 
 func (api *Api) handleRoomsList(wreq *ward.Request) {
 	rooms := api.paint.ListRooms()
-	json.NewEncoder(wreq.ResponseWriter).Encode(rooms)
+	wreq.WriteJson(rooms)
 }
