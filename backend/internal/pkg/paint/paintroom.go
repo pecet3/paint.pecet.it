@@ -42,6 +42,8 @@ func (p *PaintRoom) RegisterHandlers() {
 
 	p.Channel.RegisterEventHandler("canvas_pixel_update", p.handlePixelUpdate)
 	p.Channel.RegisterEventHandler("canvas_get_all", p.handleGetAllCanvas)
+	p.Channel.RegisterEventHandler("canvas_reset", p.handleResetCanvas)
+
 	p.Channel.RegisterEventHandler("chat_message", p.handleChatMessage)
 	p.Channel.RegisterEventHandler("webrtc_signal", p.handleSignal)
 

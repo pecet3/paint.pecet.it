@@ -33,7 +33,7 @@ export interface ServerMessage {
     date: string;
 }
 
-export interface RoomUser {
+export type RoomUser = {
     uuid: string;
     name: string;
     is_operator: boolean;

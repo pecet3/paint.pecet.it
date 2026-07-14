@@ -23,17 +23,31 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
   const [isJoined, setIsJoined] = useState(false);
   const [isWebRTC, setIsWebRTC] = useState(false)
   const [reconnectCounter, setReconnectCounter] = useState(0)
+  const [resetKey, setResetKey] = useState(0);
 
-  const [isDraw, setIsDraw] = useState(false)
+  const [isConnect, setIsConnect] = useState(true)
+  const [localUser, setLocalUser] = useState<RoomUser>({
+    uuid: "",
+    name: "",
+    is_operator: false,
+    is_connected: false,
+    is_draw: false,
+    is_kicked: false,
+  })
+
   useEffect(() => {
     ws.current = new WebSocket("/api/join-room/" + roomInfo.name);
 
     ws.current.onmessage = (message: MessageEvent) => {
       const data = JSON.parse(message.data);
-
+      console.log(data.type)
       switch (data.type) {
         case "canvas_pixel_update":
           setIncomingPixels(decodeBase64ToPixels(data.payload))
+          break;
+        case "canvas_reset":
+          setResetKey(resetKey + 1)
+          setIncomingPixels(null)
           break;
         case "chat_message":
           setChatMessages(prev => [...prev, data.payload as ChatMessage]);
@@ -52,6 +66,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
         case "join_confirmation":
           setIsJoined(true);
           break;
+
         case "kick_confirmation":
           alert("you are kicked from this room")
           navigate("/");
@@ -86,9 +101,16 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
       }
     }
   }, [isJoined]);
+
   useEffect(() => {
-    users.forEach(u => u.uuid === user?.uuid && setIsDraw(u.is_draw))
+    const usr = users.find(u => u.uuid == user?.uuid)
+    if (usr !== undefined) {
+      setLocalUser(usr)
+    }
   }, [users]);
+
+
+
   const handleSendChatMessage = (msg: string) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type: "chat_message", payload: { message: msg } }));
@@ -116,14 +138,19 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
       ws.current.send(JSON.stringify({ type: "canvas_get_all", payload: "" }));
     }
   };
-
+  const handleCanvasReset = () => {
+    confirm("Are you sure?")
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({ type: "canvas_reset", payload: "" }));
+    }
+  };
   const handleSendSignal = (payload: WebRTCSignalPayload) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type: "webrtc_signal", payload }));
     }
   };
   const handleSendPixelUpdateWS = (pixels: Pixel[]) => {
-    if (!isDraw) return;
+    if (!localUser.is_draw) return;
     const base64Payload = encodePixelsToBase64(pixels);
     if (ws.current?.readyState === WebSocket.OPEN)
       ws.current.send(JSON.stringify({
@@ -152,7 +179,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
   };
 
   const handleSendPixelUpdateRTC = (pixels: Pixel[]) => {
-    if (!isDraw) return;
+    if (!localUser.is_draw) return;
     const base64Payload = encodePixelsToBase64(pixels);
     if (isWebRTC) {
       if (webrtcRef.current) {
@@ -181,22 +208,24 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
     password: ""
   }
 
-  const [isConnect, setIsConnect] = useState(true)
 
   return (
     <>
       {isConnect ? <div className="m-2 flex flex-col items-center gap-2">
         < div className="flex gap-1 items-center justify-center w-full flex-col xl:flex-row" >
-
           {
             isWebRTC
-              ? <PaintCanvas
-                config={cfg}
-                onSendPixelUpdate={handleSendPixelUpdateWS}
-                incomingPixels={incomingPixels}
-                onSendPixelUpdateRTC={handleSendPixelUpdateRTC}
-              />
+              ? <div key={resetKey}>
+                <PaintCanvas
+                  config={cfg}
+                  onSendPixelUpdate={handleSendPixelUpdateWS}
+                  incomingPixels={incomingPixels}
+                  onSendPixelUpdateRTC={handleSendPixelUpdateRTC}
+                />
+                {localUser.is_operator && <button onClick={() => handleCanvasReset()}>Reset Canvas</button>}
+              </div>
               : <PaintCanvas
+                key={resetKey}
                 config={cfg}
                 onSendPixelUpdate={handleSendPixelUpdateWS}
                 incomingPixels={incomingPixels}

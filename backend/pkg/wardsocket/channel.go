@@ -61,8 +61,6 @@ func (r *Channel) WithCancelContext(ctx context.Context) (*Channel, context.Cont
 }
 
 func (r *Channel) Broadcast(msg json.RawMessage, omitClients ...*Client) {
-	r.cMu.RLock()
-	defer r.cMu.RUnlock()
 	if len(omitClients) > 0 {
 		for client := range r.clients {
 			if !slices.Contains(omitClients, client) {

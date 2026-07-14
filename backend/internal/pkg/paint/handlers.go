@@ -3,6 +3,7 @@ package paint
 import (
 	"context"
 	"encoding/json"
+	"image"
 	"time"
 
 	"paint.pecet.it/pkg/ward"
@@ -54,6 +55,31 @@ type SignalPayload struct {
 
 type UserManagmentPayload struct {
 	Uuid string `json:"uuid"`
+}
+
+func (p *PaintRoom) handleResetCanvas(ctx context.Context, event *wardsocket.Event) {
+	p.uMu.RLock()
+
+	eventUser, ok := p.users[event.Client.Request.User.Uuid()]
+	if !ok {
+		p.Log("user doesn't belong to room requested user managment event ", event.Client.Request.User.Uuid())
+		return
+	}
+
+	if !eventUser.IsOperator {
+		p.Log("no operator requested user managment event ", event.Client.Request.User.Uuid())
+		return
+	}
+	p.uMu.RUnlock()
+
+	p.cMu.Lock()
+	p.Canvas = image.NewRGBA(image.Rect(0, 0, p.cfg.Width, p.cfg.Height))
+	p.saveBuf = p.saveBuf[:0]
+	p.cMu.Unlock()
+
+	out := []byte(`{"type":"canvas_reset","payload":""}`)
+	p.Channel.Broadcast(out)
+	p.BroadcastServerMessage("Operator reset the canvas")
 }
 
 func (p *PaintRoom) handleUserDraw(ctx context.Context, event *wardsocket.Event) {

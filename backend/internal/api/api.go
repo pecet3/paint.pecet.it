@@ -4,10 +4,10 @@ import (
 	"log"
 	"net/http"
 
-	"paint.pecet.it/internal/paint"
+	"paint.pecet.it/internal/pkg/paint"
+	"paint.pecet.it/internal/pkg/simpleauth"
 	"paint.pecet.it/internal/repo/app"
 	"paint.pecet.it/internal/repo/env"
-	"paint.pecet.it/internal/simpleauth"
 	"paint.pecet.it/pkg/ward"
 )
 

@@ -33,7 +33,6 @@ export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage, oper
     const [isOp, setIsOp] = useState(false)
     const [input, setInput] = useState("");
     const chatContainerRef = useRef<HTMLDivElement>(null);
-
     useEffect(() => {
         const localUser = users.find(u => u.uuid == user?.uuid)
         localUser?.is_operator && setIsOp(true)

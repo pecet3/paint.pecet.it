@@ -3,8 +3,8 @@ package app
 import (
 	"net/http"
 
-	"paint.pecet.it/internal/paint"
-	"paint.pecet.it/internal/simpleauth"
+	"paint.pecet.it/internal/pkg/paint"
+	"paint.pecet.it/internal/pkg/simpleauth"
 	"paint.pecet.it/pkg/ward"
 	"paint.pecet.it/pkg/wardsocket"
 )
