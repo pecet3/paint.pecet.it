@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"paint.pecet.it/pkg/ward"
 )
 
 type Event struct {
@@ -53,7 +52,7 @@ func New(upgrader *Upgrader) *WardSocket {
 	return ws
 }
 
-func (ws *WardSocket) UpgradeRequest(wreq *ward.Request) (*Client, error) {
+func (ws *WardSocket) UpgradeRequest(w http.ResponseWriter, r *http.Request) (*Client, error) {
 	ug := &websocket.Upgrader{
 		HandshakeTimeout:  ws.upgrader.HandshakeTimeout,
 		ReadBufferSize:    ws.upgrader.ReadBufferSize,
@@ -61,18 +60,9 @@ func (ws *WardSocket) UpgradeRequest(wreq *ward.Request) (*Client, error) {
 		CheckOrigin:       ws.upgrader.CheckOrigin,
 		EnableCompression: ws.upgrader.EnableCompression,
 	}
-	conn, err := ug.Upgrade(wreq.ResponseWriter, wreq.Http, nil)
+	conn, err := ug.Upgrade(w, r, nil)
 	if err != nil {
 		return nil, err
 	}
-	return NewClient(conn, wreq), nil
-}
-
-func (ws *WardSocket) AssignRequestToChannel(wreq *ward.Request, channel *Channel) error {
-	client, err := ws.UpgradeRequest(wreq)
-	if err != nil {
-		return err
-	}
-	channel.JoinClient(client)
-	return nil
+	return NewClient(conn), nil
 }

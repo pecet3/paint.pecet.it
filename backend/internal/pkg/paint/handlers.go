@@ -60,14 +60,14 @@ type UserManagmentPayload struct {
 func (p *PaintRoom) handleResetCanvas(ctx context.Context, event *wardsocket.Event) {
 	p.uMu.RLock()
 
-	eventUser, ok := p.users[event.Client.Request.User.Uuid()]
+	eventUser, ok := p.users[event.Client.User.Uuid()]
 	if !ok {
-		p.Log("user doesn't belong to room requested user managment event ", event.Client.Request.User.Uuid())
+		p.Log("user doesn't belong to room requested user managment event ", event.Client.User.Uuid())
 		return
 	}
 
 	if !eventUser.IsOperator {
-		p.Log("no operator requested user managment event ", event.Client.Request.User.Uuid())
+		p.Log("no operator requested user managment event ", event.Client.User.Uuid())
 		return
 	}
 	p.uMu.RUnlock()
@@ -85,14 +85,14 @@ func (p *PaintRoom) handleResetCanvas(ctx context.Context, event *wardsocket.Eve
 func (p *PaintRoom) handleUserDraw(ctx context.Context, event *wardsocket.Event) {
 	p.uMu.Lock()
 	defer p.uMu.Unlock()
-	eventUser, ok := p.users[event.Client.Request.User.Uuid()]
+	eventUser, ok := p.users[event.Client.User.Uuid()]
 	if !ok {
-		p.Log("user doesn't belong to room requested user managment event ", event.Client.Request.User.Uuid())
+		p.Log("user doesn't belong to room requested user managment event ", event.Client.User.Uuid())
 		return
 	}
 
 	if !eventUser.IsOperator {
-		p.Log("no operator requested user managment event ", event.Client.Request.User.Uuid())
+		p.Log("no operator requested user managment event ", event.Client.User.Uuid())
 		return
 	}
 	var payload UserManagmentPayload
@@ -117,14 +117,14 @@ func (p *PaintRoom) handleUserDraw(ctx context.Context, event *wardsocket.Event)
 func (p *PaintRoom) handleUserOperator(ctx context.Context, event *wardsocket.Event) {
 	p.uMu.Lock()
 	defer p.uMu.Unlock()
-	eventUser, ok := p.users[event.Client.Request.User.Uuid()]
+	eventUser, ok := p.users[event.Client.User.Uuid()]
 	if !ok {
-		p.Log("user doesn't belong to room requested user managment event ", event.Client.Request.User.Uuid())
+		p.Log("user doesn't belong to room requested user managment event ", event.Client.User.Uuid())
 		return
 	}
 
 	if !eventUser.IsOperator {
-		p.Log("no operator requested user managment event ", event.Client.Request.User.Uuid())
+		p.Log("no operator requested user managment event ", event.Client.User.Uuid())
 		return
 	}
 	var payload UserManagmentPayload
@@ -150,14 +150,14 @@ func (p *PaintRoom) handleUserOperator(ctx context.Context, event *wardsocket.Ev
 func (p *PaintRoom) handleUserKick(ctx context.Context, event *wardsocket.Event) {
 	p.uMu.Lock()
 	defer p.uMu.Unlock()
-	eventUser, ok := p.users[event.Client.Request.User.Uuid()]
+	eventUser, ok := p.users[event.Client.User.Uuid()]
 	if !ok {
-		p.Log("user doesn't belong to room requested user managment event ", event.Client.Request.User.Uuid())
+		p.Log("user doesn't belong to room requested user managment event ", event.Client.User.Uuid())
 		return
 	}
 
 	if !eventUser.IsOperator {
-		p.Log("no operator requested user managment event ", event.Client.Request.User.Uuid())
+		p.Log("no operator requested user managment event ", event.Client.User.Uuid())
 		return
 	}
 	var payload UserManagmentPayload
@@ -197,7 +197,7 @@ func (p *PaintRoom) handleChatMessage(ctx context.Context, event *wardsocket.Eve
 	p.uMu.Lock()
 	defer p.uMu.Unlock()
 
-	uuid := event.Client.Request.User.Uuid()
+	uuid := event.Client.User.Uuid()
 	user, exists := p.users[uuid]
 	if !exists {
 
@@ -212,7 +212,7 @@ func (p *PaintRoom) handleChatMessage(ctx context.Context, event *wardsocket.Eve
 	user.LastChatMsgAt = now
 
 	msg := ChatMessage{
-		Name:    event.Client.Request.User.Name(),
+		Name:    event.Client.User.Name(),
 		Uuid:    uuid,
 		Message: payload.Message,
 		Date:    time.Now(),
@@ -230,13 +230,13 @@ func (p *PaintRoom) handlePixelUpdate(ctx context.Context, evt *wardsocket.Event
 	var data []byte
 	err := json.Unmarshal(evt.Payload, &data)
 	if err != nil {
-		evt.Client.Request.Log("unmarshal err: ", err)
+		evt.Client.Log("unmarshal err: ", err)
 		return
 	}
 	if len(data) == 0 || len(data)%8 != 0 {
 		return
 	}
-	uuid := evt.Client.Request.User.Uuid()
+	uuid := evt.Client.User.Uuid()
 	user, exists := p.users[uuid]
 	if !exists {
 		return
@@ -255,15 +255,15 @@ func (p *PaintRoom) handlePixelUpdate(ctx context.Context, evt *wardsocket.Event
 func (p *PaintRoom) handleSignal(ctx context.Context, e *wardsocket.Event) {
 	var payload SignalPayload
 	if err := json.Unmarshal(e.Payload, &payload); err != nil {
-		e.Client.Request.Log("Invalid WebRTC signal payload:", err)
+		e.Client.Log("Invalid WebRTC signal payload:", err)
 		return
 	}
 
-	payload.SenderUUID = e.Client.Request.User.Uuid()
+	payload.SenderUUID = e.Client.User.Uuid()
 
 	outgoingPayloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		e.Client.Request.Log("Failed to marshal WebRTC payload:", err)
+		e.Client.Log("Failed to marshal WebRTC payload:", err)
 		return
 	}
 
@@ -284,16 +284,16 @@ func (p *PaintRoom) handleGetAllCanvas(ctx context.Context, event *wardsocket.Ev
 }
 
 func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
-	p.Log(c.Request.User.Uuid(), "joined")
+	p.Log(c.User.Uuid(), "joined")
 
 	p.uMu.Lock()
 	defer p.uMu.Unlock()
-	uuid := c.Request.User.Uuid()
+	uuid := c.User.Uuid()
 	user, exists := p.users[uuid]
 
 	if !exists {
 		user = &User{
-			WardUser:      c.Request.User,
+			WardUser:      c.User,
 			IsOperator:    len(p.users) == 0,
 			IsConnected:   true,
 			JoinedAt:      time.Now(),
@@ -314,17 +314,17 @@ func (p *PaintRoom) handleJoin(ctx context.Context, c *wardsocket.Client) {
 
 	p.SendChatHistory(c)
 	p.BroadcastUserList()
-	p.BroadcastServerMessage(c.Request.User.Name() + " joined the room")
+	p.BroadcastServerMessage(c.User.Name() + " joined the room")
 
 	outgoingEvent := []byte(`{"type":"join_confirmation","payload":""}`)
 	c.Send(outgoingEvent)
 }
 
 func (p *PaintRoom) handleLeave(ctx context.Context, client *wardsocket.Client) {
-	p.Log(client.Request.LogInfo(), "left")
+	p.Log(client.User.Uuid(), "left")
 	p.uMu.Lock()
 	defer p.uMu.Unlock()
-	uuid := client.Request.User.Uuid()
+	uuid := client.User.Uuid()
 	user, exists := p.users[uuid]
 	if exists {
 		user.IsConnected = false
@@ -334,7 +334,7 @@ func (p *PaintRoom) handleLeave(ctx context.Context, client *wardsocket.Client) 
 	p.lastLeftAt = time.Now()
 
 	if !user.IsKicked {
-		p.BroadcastServerMessage(client.Request.User.Name() + " left the room")
+		p.BroadcastServerMessage(client.User.Name() + " left the room")
 		p.BroadcastUserList()
 	}
 }

@@ -17,4 +17,6 @@ type RoomConfig struct {
 	Password    string `json:"password" validate:"omitempty,min=4,max=64"`
 	Width       int    `json:"width" validate:"required,gte=100,lte=10000"`
 	Height      int    `json:"height" validate:"required,gte=100,lte=10000"`
+	IsWebRTC    bool   `json:"is_webrtc" validate:"omitempty"`
+	IsSynth     bool   `json:"is_synth" validate:"omitempty"`
 }

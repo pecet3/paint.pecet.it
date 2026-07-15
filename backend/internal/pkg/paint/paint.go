@@ -74,5 +74,10 @@ func (p *Paint) AssignRequestToRoom(wreq *ward.Request, roomName string) error {
 	if room == nil {
 		return fmt.Errorf("room not found: %s", roomName)
 	}
-	return p.ws.AssignRequestToChannel(wreq, room.Channel)
+	c, err := p.ws.UpgradeRequest(wreq.ResponseWriter, wreq.Http)
+	if err != nil {
+		return err
+	}
+	room.Channel.JoinClient(c.AssingUser(wreq.User).RegisterLogFunc(wreq.Log))
+	return nil
 }

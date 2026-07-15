@@ -2,10 +2,10 @@ package wardsocket
 
 import (
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/gorilla/websocket"
-	"paint.pecet.it/pkg/ward"
 )
 
 const (
@@ -15,21 +15,60 @@ const (
 	maxMessageSize = 1024 * 1024 * 10
 )
 
-type Client struct {
-	conn    *websocket.Conn
-	Request *ward.Request
+type User interface {
+	Name() string
+	Uuid() string
+	Rank() int
+}
 
-	sendCh chan json.RawMessage
+type nullUser struct{}
+
+var nUser = &nullUser{}
+
+const (
+	null = "null"
+)
+
+func (u *nullUser) Uuid() string {
+	return null
+}
+func (u *nullUser) Name() string {
+	return null
+}
+func (u *nullUser) Rank() int {
+	return 0
+}
+
+type Client struct {
+	conn *websocket.Conn
+	User User
+
+	logFunc func(v ...any)
+	sendCh  chan json.RawMessage
+}
+
+func (c *Client) Log(v ...any) {
+	c.logFunc(v...)
 }
 
 func (c *Client) Send(msg json.RawMessage) {
 	c.sendCh <- msg
 }
 
-func NewClient(conn *websocket.Conn, wreq *ward.Request) *Client {
-	return &Client{conn: conn, sendCh: make(chan json.RawMessage, 10), Request: wreq}
+func NewClient(conn *websocket.Conn) *Client {
+	return &Client{conn: conn, sendCh: make(chan json.RawMessage, 10), User: nUser, logFunc: func(v ...any) {
+		log.Println(v...)
+	}}
 }
 
+func (c *Client) AssingUser(u User) *Client {
+	c.User = u
+	return c
+}
+func (c *Client) RegisterLogFunc(fn func(...any)) *Client {
+	c.logFunc = fn
+	return c
+}
 func (c *Client) readPump(r *Channel) {
 	defer func() {
 		r.leaveCh <- c
@@ -46,13 +85,13 @@ func (c *Client) readPump(r *Channel) {
 	for {
 		_, bytes, err := c.conn.ReadMessage()
 		if err != nil {
-			c.Request.Log("Ws read message err", err)
+			c.Log("Ws read message err", err)
 			break
 		}
 
 		var e Event
 		if err := json.Unmarshal(bytes, &e); err != nil {
-			c.Request.Log("parsing err JSON:", err)
+			c.Log("parsing err JSON:", err)
 			continue
 		}
 		e.Client = c
@@ -80,13 +119,13 @@ func (c *Client) writePump(r *Channel) {
 
 			err := c.conn.WriteJSON(msg)
 			if err != nil {
-				c.Request.Log(err)
+				c.Log(err)
 				return
 			}
 		case <-ticker.C:
 			_ = c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				c.Request.Log("Ping send err:", err)
+				c.Log("Ping send err:", err)
 				return
 			}
 		}
