@@ -7,6 +7,7 @@ import { WebRTCManager, type WebRTCManagerHandle } from "../components/room/WebR
 import { useNavigate, useParams } from "react-router";
 import { useStore } from "../Store";
 import type { Pixel } from "../types";
+import { Synthesizer } from "../components/synth/Synthesizer";
 
 
 export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
@@ -201,13 +202,6 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
   //     }
   //   };
   // }
-  const cfg: RoomConfig = {
-    height: roomInfo.height,
-    width: roomInfo.width,
-    is_temporary: false,
-    name: "",
-    password: ""
-  }
 
 
   return (
@@ -218,7 +212,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
             isWebRTC
               ? <div key={resetKey}>
                 <PaintCanvas
-                  config={cfg}
+                  config={roomInfo.config}
                   onSendPixelUpdate={handleSendPixelUpdateWS}
                   incomingPixels={incomingPixels}
                   onSendPixelUpdateRTC={handleSendPixelUpdateRTC}
@@ -227,7 +221,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
               </div>
               : <PaintCanvas
                 key={resetKey}
-                config={cfg}
+                config={roomInfo.config}
                 onSendPixelUpdate={handleSendPixelUpdateWS}
                 incomingPixels={incomingPixels}
               />}
@@ -261,6 +255,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
                 onOp: handleUserOperator
               }}
             />
+            {roomInfo.config.is_synth && <div>.</div>}
           </div>
         </div >
 

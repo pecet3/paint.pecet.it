@@ -61,14 +61,13 @@ func (p *PaintRoom) Info() RoomInfo {
 			onlineUsers++
 		}
 	}
-
+	cfg := p.cfg
+	cfg.Password = ""
 	return RoomInfo{
 		Name:        p.cfg.Name,
 		IsTemporary: p.cfg.IsTemporary,
 		OnlineUsers: onlineUsers,
-		IsPassword:  p.cfg.Password != "",
-		Width:       p.cfg.Width,
-		Height:      p.cfg.Height,
+		Config:      cfg,
 	}
 }
 
