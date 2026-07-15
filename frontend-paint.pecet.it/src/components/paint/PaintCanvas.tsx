@@ -12,7 +12,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
     onSendPixelUpdate,
     incomingPixels,
     onSendPixelUpdateRTC,
-    config
+    config,
 }) => {
     const mainCanvasRef = useRef<HTMLCanvasElement>(null);
     const bufferCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -55,6 +55,11 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                 ctx.fillStyle = p.color;
                 ctx.fillRect(p.x, p.y, 1, 1);
             });
+        }
+        if (!incomingPixels && mainCanvasRef.current) {
+            const ctx = mainCanvasRef.current.getContext('2d');
+            if (!ctx) return;
+            ctx.reset()
         }
     }, [incomingPixels]);
 
@@ -200,7 +205,7 @@ export const PaintCanvas: React.FC<PaintCanvasProps> = ({
                     {tool === 'draw' && (
                         <label className="flex items-center">
                             Brush size: {brushSize}px
-                            <input type="range" min="1" max="10" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))}
+                            <input type="range" min="1" max="24" value={brushSize} onChange={(e) => setBrushSize(Number(e.target.value))}
                                 className="" />
                         </label>
                     )}

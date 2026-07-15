@@ -218,7 +218,6 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
 
         pc.oniceconnectionstatechange = () => {
             if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-                console.warn(`Połączenie z ${targetUuid} zerwane. Czyścimy...`);
                 pc.close();
                 peersRef.current.delete(targetUuid);
                 setRemoteStreams(prev => {
@@ -379,7 +378,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
             </div>
 
             {/* Panel kontrolny pod WSZYSTKIMI kafelkami wideo (Mutowanie Siebie) */}
-            <div className="flex justify-center text-xs items-center space-x-3 pt-2 border-t border-gray-800">
+            <div className="flex justify-center text-xs items-center space-x-3 pt-2 border-gray-800">
                 <button
                     onClick={toggleLocalMic}
                     className={`px-4 py-2  font-medium rounded-xl transition-all active:scale-95 flex items-center border

@@ -46,7 +46,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
           setIncomingPixels(decodeBase64ToPixels(data.payload))
           break;
         case "canvas_reset":
-          setResetKey(resetKey + 1)
+          setResetKey(p => p + 1)
           setIncomingPixels(null)
           break;
         case "chat_message":
@@ -94,8 +94,8 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
 
   useEffect(() => {
     if (isJoined) {
-      let timer1 = setTimeout(() => setIsWebRTC(true), 1000);
       handleGetAllCanvas();
+      let timer1 = setTimeout(() => setIsWebRTC(true), 1000);
       return () => {
         clearTimeout(timer1)
       }
