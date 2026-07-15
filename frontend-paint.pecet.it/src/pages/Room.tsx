@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PaintCanvas } from "../components/paint/PaintCanvas";
 import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/paint/pixel";
-import type { ChatMessage, Event, Pixel, RoomConfig, RoomInfo, RoomUser, ServerMessage, WebRTCSignalPayload } from "../types";
+import type { ChatMessage, Event, RoomConfig, RoomInfo, RoomUser, ServerMessage, SignalPayload } from "../gengotypes";
 import { Chat } from "../components/room/Chat";
 import { WebRTCManager, type WebRTCManagerHandle } from "../components/room/WebRTCManager";
 import { useNavigate, useParams } from "react-router";
 import { useStore } from "../Store";
+import type { Pixel } from "../types";
 
 
 export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
@@ -60,7 +61,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
           break;
         case "webrtc_signal":
           if (webrtcRef.current) {
-            webrtcRef.current.receiveSignal(data.payload as WebRTCSignalPayload);
+            webrtcRef.current.receiveSignal(data.payload as SignalPayload);
           }
           break;
         case "join_confirmation":
@@ -144,7 +145,7 @@ export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
       ws.current.send(JSON.stringify({ type: "canvas_reset", payload: "" }));
     }
   };
-  const handleSendSignal = (payload: WebRTCSignalPayload) => {
+  const handleSendSignal = (payload: SignalPayload) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type: "webrtc_signal", payload }));
     }

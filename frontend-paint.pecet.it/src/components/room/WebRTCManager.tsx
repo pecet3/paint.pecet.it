@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from "react";
-import type { Event, RoomUser, WebRTCSignalPayload } from "../../types";
+import type { Event, RoomUser, SignalPayload } from "../../gengotypes";
 import { useStore } from "../../Store";
 
 const STUN_SERVERS = {
@@ -11,11 +11,11 @@ const STUN_SERVERS = {
 
 interface WebRTCManagerProps {
     users: RoomUser[];
-    onSendSignal: (payload: WebRTCSignalPayload) => void;
+    onSendSignal: (payload: SignalPayload) => void;
     onDataReceived?: (payload: Event) => void;
 }
 export interface WebRTCManagerHandle {
-    receiveSignal: (signal: WebRTCSignalPayload) => void;
+    receiveSignal: (signal: SignalPayload) => void;
     broadcastData: (payload: Event) => void;
 }
 interface PeerData {
@@ -94,7 +94,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
     const localStreamRef = useRef<MediaStream | null>(null);
     const peersRef = useRef<Map<string, PeerData>>(new Map());
 
-    const signalQueueRef = useRef<WebRTCSignalPayload[]>([]);
+    const signalQueueRef = useRef<SignalPayload[]>([]);
     const isProcessingRef = useRef<boolean>(false);
 
     const [isMediaReady, setIsMediaReady] = useState(false);
@@ -328,7 +328,7 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
     }, [isMediaReady, localUserUuid, createPeer, onSendSignal]);
 
     useImperativeHandle(ref, () => ({
-        receiveSignal: (signal: WebRTCSignalPayload) => {
+        receiveSignal: (signal: SignalPayload) => {
             if (signal.targetUuid !== localUserUuid) return;
             signalQueueRef.current.push(signal);
             processSignalQueue();

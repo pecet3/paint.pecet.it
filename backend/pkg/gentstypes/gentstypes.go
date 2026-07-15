@@ -52,6 +52,7 @@ type tsField struct {
 	tsType        string
 	comment       string
 	inlineComment string
+	isNullable    bool
 }
 type tsType struct {
 	name    string
@@ -274,11 +275,17 @@ func buildTSTypes() []tsType {
 			tsF := tsField{
 				tsName: extractJSONName(f.tag),
 			}
+
+			// flags
 			if flags.IsComments {
 				tsF.comment = goStr.comment
 			}
 			if flags.IsTagInComment {
 				tsF.inlineComment = f.tag
+			}
+
+			if strings.Contains(f.tag, "omitempty") {
+				tsF.isNullable = true
 			}
 
 			if tsF.tsName == "" || tsF.tsName == "-" {
@@ -333,6 +340,11 @@ func generateTSFile(tsTypes []tsType, outputPath string) {
 			}
 			sb.WriteString("\t")
 			sb.WriteString(f.tsName)
+
+			if f.isNullable {
+				sb.WriteString("?")
+			}
+
 			sb.WriteString(": ")
 			sb.WriteString(f.tsType)
 			sb.WriteString(";")
@@ -401,6 +413,7 @@ func Exec(inputDir string, outputFile string, f ...Flags) {
 	if f != nil {
 		flags = f[0]
 	}
+
 	err := filepath.Walk(inputDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -429,9 +442,9 @@ func Run() {
 	if len(os.Args) < 2 {
 		os.Exit(1)
 	}
-	flags.IsTagInComment = *flag.Bool("tags", false, "struct tag included in comment")
-	flags.IsNameStartsWithPkgName = *flag.Bool("starts-pkg", false, "always starts type name with go package name")
-	flags.IsComments = *flag.Bool("comments", true, "include go comments in the output")
+	flag.BoolVar(&flags.IsTagInComment, "tags", false, "struct tag included in comment")
+	flag.BoolVar(&flags.IsNameStartsWithPkgName, "starts-pkg", false, "always starts type name with go package name")
+	flag.BoolVar(&flags.IsComments, "comments", true, "include go comments in the output")
 
 	flag.Parse()
 	remainingArgs := flag.Args()

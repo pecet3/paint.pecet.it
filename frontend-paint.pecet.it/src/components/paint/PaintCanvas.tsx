@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
-import type { Pixel, RoomConfig } from '../../types';
+import type { Pixel } from '../../types';
+import type { RoomConfig } from '../../gengotypes';
 
 interface PaintCanvasProps {
     onSendPixelUpdate: (pixels: Pixel[]) => void;
