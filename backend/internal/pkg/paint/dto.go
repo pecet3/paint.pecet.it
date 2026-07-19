@@ -4,6 +4,7 @@ package paint
 type RoomInfo struct {
 	Name        string      `json:"name"`
 	IsTemporary bool        `json:"is_temporary"`
+	IsPassword  bool        `json:"is_password"`
 	OnlineUsers int         `json:"online_users"`
 	Config      *RoomConfig `json:"config"`
 }

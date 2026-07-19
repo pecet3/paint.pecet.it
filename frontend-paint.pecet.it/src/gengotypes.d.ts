@@ -1,3 +1,37 @@
+export type User = {
+	uuid: string; // `json:"uuid"`
+	name: string; // `json:"name"`
+	rank: number; // `json:"rank"`
+}
+
+export type LoginRequest = {
+	name: string; // `json:"name" validate:"required,min=2,max=32"`
+	password?: string; // `json:"password,omitempty"`
+}
+
+export type Event = {
+	type: string; // `json:"type"`
+	payload: any; // `json:"payload"`
+}
+
+export type RoomInfo = {
+	name: string; // `json:"name"`
+	is_temporary: boolean; // `json:"is_temporary"`
+	is_password: boolean; // `json:"is_password"`
+	online_users: number; // `json:"online_users"`
+	config: RoomConfig; // `json:"config"`
+}
+
+export type ServerMessage = {
+	message: string; // `json:"message"`
+	date: string; // `json:"date"`
+}
+
+export type ByteEvent = {
+	type: string; // `json:"type"`
+	payload: any[]; // `json:"payload"`
+}
+
 export type RoomConfig = {
 	name: string; // `json:"name" validate:"required,min=3,max=32"`
 	is_temporary: boolean; // `json:"is_temporary" validate:"required"`
@@ -8,7 +42,9 @@ export type RoomConfig = {
 	is_synth: boolean; // `json:"is_synth" validate:"required"`
 }
 
-export type ServerMessage = {
+export type ChatMessage = {
+	name: string; // `json:"name"`
+	uuid: string; // `json:"uuid"`
 	message: string; // `json:"message"`
 	date: string; // `json:"date"`
 }
@@ -31,40 +67,5 @@ export type SignalPayload = {
 
 export type UserManagmentPayload = {
 	uuid: string; // `json:"uuid"`
-}
-
-export type LoginRequest = {
-	name: string; // `json:"name" validate:"required,min=2,max=32"`
-	password?: string; // `json:"password,omitempty"`
-}
-
-export type Event = {
-	type: string; // `json:"type"`
-	payload: any; // `json:"payload"`
-}
-
-export type ByteEvent = {
-	type: string; // `json:"type"`
-	payload: any[]; // `json:"payload"`
-}
-
-export type RoomInfo = {
-	name: string; // `json:"name"`
-	is_temporary: boolean; // `json:"is_temporary"`
-	online_users: number; // `json:"online_users"`
-	config: RoomConfig; // `json:"config"`
-}
-
-export type ChatMessage = {
-	name: string; // `json:"name"`
-	uuid: string; // `json:"uuid"`
-	message: string; // `json:"message"`
-	date: string; // `json:"date"`
-}
-
-export type User = {
-	uuid: string; // `json:"uuid"`
-	name: string; // `json:"name"`
-	rank: number; // `json:"rank"`
 }
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import type { ChatMessage, RoomUser } from "../../types";
+import type { ChatMessage, RoomUser } from "../../gengotypes";
 import { useStore } from "../../Store";
 
 

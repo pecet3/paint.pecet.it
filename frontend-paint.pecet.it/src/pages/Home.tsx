@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
-import type { RoomConfig, RoomInfo } from '../types';
+import type { RoomConfig, RoomInfo } from '../gengotypes';
 
 
 
@@ -15,6 +15,8 @@ export const Home: React.FC = () => {
     is_temporary: true,
     height: 100,
     width: 100,
+    is_synth: false,
+    is_webrtc: true,
   });
 
   const fetchRooms = async () => {
@@ -54,7 +56,7 @@ export const Home: React.FC = () => {
 
       if (response.ok) {
         setIsFormVisible(false);
-        setFormData({ name: '', password: '', is_temporary: false, width: 100, height: 100, });
+        setFormData({ name: '', password: '', is_temporary: false, width: 100, height: 100, is_synth: false, is_webrtc: true });
         fetchRooms();
         navigate(`/room/${formData.name}`)
       }
@@ -70,7 +72,7 @@ export const Home: React.FC = () => {
     <div className="flex items-center justify-between p-4 mb-3 bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200">
       <div className="flex items-center gap-3">
         <h3 className="text-lg font-semibold text-gray-800">{room.name}</h3>
-        {room.is_passowrd && (
+        {room.is_password && (
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" viewBox="0 0 20 20" fill="currentColor">
             <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
           </svg>

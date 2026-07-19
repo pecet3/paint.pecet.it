@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { User } from './types';
+import type { User } from './gengotypes';
 
 interface StoreContextType {
     user: User | null;

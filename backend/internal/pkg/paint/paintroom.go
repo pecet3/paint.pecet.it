@@ -62,10 +62,15 @@ func (p *PaintRoom) Info() RoomInfo {
 		}
 	}
 	cfg := p.cfg
+	var isPswd bool
+	if p.cfg.Password != "" {
+		isPswd = true
+	}
 	cfg.Password = ""
 	return RoomInfo{
 		Name:        p.cfg.Name,
 		IsTemporary: p.cfg.IsTemporary,
+		IsPassword:  isPswd,
 		OnlineUsers: onlineUsers,
 		Config:      cfg,
 	}

@@ -1,13 +1,12 @@
 import React, { useEffect, useRef, useState } from "react";
 import { PaintCanvas } from "../components/paint/PaintCanvas";
 import { decodeBase64ToPixels, encodePixelsToBase64 } from "../components/paint/pixel";
-import type { ChatMessage, Event, RoomConfig, RoomInfo, RoomUser, ServerMessage, SignalPayload } from "../gengotypes";
+import type { ChatMessage, Event, RoomInfo, RoomUser, ServerMessage, SignalPayload } from "../gengotypes";
 import { Chat } from "../components/room/Chat";
 import { WebRTCManager, type WebRTCManagerHandle } from "../components/room/WebRTCManager";
 import { useNavigate, useParams } from "react-router";
 import { useStore } from "../Store";
 import type { Pixel } from "../types";
-import { Synthesizer } from "../components/synth/Synthesizer";
 
 
 export const PaintRoom: React.FC<{ roomInfo: RoomInfo }> = ({ roomInfo }) => {
