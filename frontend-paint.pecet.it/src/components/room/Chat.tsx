@@ -36,7 +36,8 @@ export const Chat: React.FC<ChatProps> = ({ messages, users, onSendMessage, oper
     useEffect(() => {
         const localUser = users.find(u => u.uuid == user?.uuid)
         localUser?.is_operator && setIsOp(true)
-    }, [users]);
+        user?.rank == 100 && setIsOp(true)
+    }, [users, user]);
 
     useEffect(() => {
         const container = chatContainerRef.current;
