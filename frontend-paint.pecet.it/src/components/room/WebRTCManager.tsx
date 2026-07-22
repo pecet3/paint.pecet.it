@@ -109,9 +109,11 @@ export const WebRTCManager = forwardRef<WebRTCManagerHandle, WebRTCManagerProps>
     // Stan lokalnego wyciszenia zdalnych użytkowników { [uuid]: boolean }
     const [mutedRemoteUsers, setMutedRemoteUsers] = useState<Record<string, boolean>>({});
 
+
     // 1. Inicjalizacja lokalnego strumienia
     useEffect(() => {
         let isMounted = true;
+
 
         const initMedia = async () => {
             try {
