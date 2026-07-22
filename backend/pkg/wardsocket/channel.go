@@ -117,15 +117,20 @@ func (r *Channel) Run(ctx context.Context) {
 		for {
 			select {
 			case client := <-r.joinCh:
-				r.cMu.Lock()
-				r.clients[client] = true
 				if len(r.joinHandlers) > 0 {
 					for _, handle := range r.joinHandlers {
 						go handle(ctx, client)
 					}
 				}
+				r.cMu.Lock()
+				r.clients[client] = true
 				r.cMu.Unlock()
 			case client := <-r.leaveCh:
+				if len(r.leaveHandlers) > 0 {
+					for _, handle := range r.leaveHandlers {
+						go handle(ctx, client)
+					}
+				}
 				r.cMu.Lock()
 				if _, ok := r.clients[client]; ok {
 					delete(r.clients, client)
